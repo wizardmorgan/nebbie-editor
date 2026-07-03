@@ -90,6 +90,9 @@ int parse_combat_int(const std::string& token) {
     return std::stoi(token.substr(0, index));
 }
 
+bool peek_is_mob_boundary(FILE* fp);
+void read_trailing_sound_strings(FILE* fp, Mobile& mob);
+
 void parse_combat_line(const std::string& combat_line, Mobile& mob) {
     const auto tokens = split_combat_tokens(combat_line);
     if (tokens.size() < 5) {
@@ -160,9 +163,38 @@ void read_new_mob_stats(FILE* fp, Mobile& mob) {
         mob.extended_sex = false;
     }
 
-    if (mob.mobtype == 'L') {
-        mob.sounds = fread_string(fp);
-        mob.distant_sounds = fread_string(fp);
+    read_trailing_sound_strings(fp, mob);
+}
+
+bool peek_is_mob_boundary(FILE* fp) {
+    const long pos = std::ftell(fp);
+    int c = std::fgetc(fp);
+    while (c != EOF && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
+        c = std::fgetc(fp);
+    }
+    const bool boundary = (c == '#' || c == '%');
+    std::fseek(fp, pos, SEEK_SET);
+    return boundary;
+}
+
+void read_trailing_sound_strings(FILE* fp, Mobile& mob) {
+    mob.sounds.clear();
+    mob.distant_sounds.clear();
+
+    std::vector<std::string> trailing;
+    while (!peek_is_mob_boundary(fp)) {
+        trailing.push_back(fread_string(fp));
+    }
+
+    if (!trailing.empty()) {
+        mob.sounds = trailing[0];
+    }
+    if (trailing.size() > 1) {
+        mob.distant_sounds = trailing[1];
+    }
+    if (trailing.size() > 2) {
+        throw ParseError(mob_context(mob) + ": too many trailing sound strings ("
+                         + std::to_string(trailing.size()) + ")");
     }
 }
 
@@ -225,7 +257,7 @@ void write_new_mob_stats(FILE* fp, const Mobile& mob) {
         std::fprintf(fp, "%d %d %d\n", mob.position, mob.default_pos, mob.sex);
     }
 
-    if (mob.mobtype == 'L') {
+    if (mob.mobtype == 'L' || !mob.sounds.empty() || !mob.distant_sounds.empty()) {
         fwrite_string(fp, mob.sounds);
         fwrite_string(fp, mob.distant_sounds);
     }

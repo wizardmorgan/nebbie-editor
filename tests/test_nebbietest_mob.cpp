@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
         const nebbie::Mobile* mob_s = world.find_mobile(1);
         const nebbie::Mobile* mob_a = world.find_mobile(3);
         const nebbie::Mobile* mob_annot = world.find_mobile(2111);
+        const nebbie::Mobile* mob_sounds = world.find_mobile(2112);
         if (!mob_s || mob_s->mobtype != 'S' || mob_s->hit_dice.empty() || mob_s->dam_dice.empty()) {
             throw std::runtime_error("type S mob #1 not parsed correctly");
         }
@@ -62,6 +63,19 @@ int main(int argc, char** argv) {
             if (mob_annot->level != 11 || mob_annot->hitroll != 15 || mob_annot->hit_bonus != 8
                 || mob_annot->dam_dice != "2d6+4") {
                 throw std::runtime_error("type A mob #2111 THAC0 annotation not parsed correctly");
+            }
+        }
+        if (mob_sounds) {
+            if (mob_sounds->mobtype != 'A' || mob_sounds->sounds.find("chanting") == std::string::npos) {
+                throw std::runtime_error("type A mob #2112 trailing sound strings not parsed correctly");
+            }
+        }
+
+        const nebbie::Mobile* vendor_ron = world.find_mobile(1717);
+        if (vendor_ron && vendor_ron->mobtype == 'L') {
+            if (vendor_ron->sounds.find("Compai") == std::string::npos
+                || vendor_ron->distant_sounds.find("muffled laughter") == std::string::npos) {
+                throw std::runtime_error("type L mob #1717 sound strings not parsed correctly");
             }
         }
 
