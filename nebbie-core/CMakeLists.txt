@@ -3,6 +3,8 @@ add_library(nebbie-core
     src/world.cpp
     src/zon_io.cpp
     src/wld_io.cpp
+    src/mob_io.cpp
+    src/obj_io.cpp
     src/lib_io.cpp
 )
 

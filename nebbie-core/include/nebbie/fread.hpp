@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace nebbie {
 
@@ -17,5 +18,7 @@ long fread_number(FILE* fp);
 long fread_if_number(FILE* fp);
 std::string fread_string(FILE* fp);
 std::string fread_word(FILE* fp);
+std::string fread_line(FILE* fp);
+std::vector<long> parse_numbers(const std::string& line);
 
 } // namespace nebbie

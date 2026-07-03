@@ -1,0 +1,25 @@
+#1
+elmo cuoio~
+Un elmo di cuoio~
+C'e' un elmo di cuoio per terra~
+~
+9 8192|16384|33554432|67108864|134217728 1|16
+2 2 0 0 
+3 0 0
+#2
+cappuccio cuoio~
+Un cappuccio di cuoio~
+Un cappuccio da addestramento di cuoio e' qui~
+~
+9 0 1|16
+1 1 0 0 
+2 0 0
+#3
+pugnale~
+Un pugnale da addestramento~
+Un pugnale da addestramento e' stato lasciato qui~
+~
+5 0 1|8192|16384
+0 1 4 1 
+1 0 0
+%%

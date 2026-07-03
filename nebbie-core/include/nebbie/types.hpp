@@ -61,6 +61,63 @@ struct Zone {
     std::vector<ResetCommand> commands;
 };
 
+struct ObjAffect {
+    int location = 0;
+    int modifier = 0;
+};
+
+struct Mobile {
+    long vnum = 0;
+    std::string name;
+    std::string short_descr;
+    std::string long_descr;
+    std::string description;
+    long act = 0;
+    long affected_by = 0;
+    long alignment = 0;
+    char mobtype = 'S';
+    int mult_att = 1;
+    int level = 0;
+    int hitroll = 0;
+    int ac = 0;
+    std::string hit_dice;
+    std::string dam_dice;
+    bool extended_gold = false;
+    long gold = 0;
+    long exp = 0;
+    long race = 0;
+    int position = 0;
+    int default_pos = 0;
+    int sex = 0;
+    bool extended_sex = false;
+    long immune = 0;
+    long meta_immune = 0;
+    long susceptible = 0;
+    std::string sounds;
+    std::string distant_sounds;
+};
+
+struct GameObject {
+    long vnum = 0;
+    std::string name;
+    std::string short_descr;
+    std::string description;
+    std::string action_description;
+    int type_flag = 0;
+    long extra_flags = 0;
+    long wear_flags = 0;
+    int value[4] = {};
+    int weight = 0;
+    int cost = 0;
+    int cost_per_day = 0;
+    std::vector<ExtraDesc> extra_descs;
+    std::vector<ObjAffect> affects;
+    bool has_extra_flags2 = false;
+    long extra_flags2 = 0;
+    std::string forbidden_char;
+    std::string forbidden_room;
+};
+
 struct LibPaths {
     std::string root;
     std::string zon;

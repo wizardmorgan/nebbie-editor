@@ -9,6 +9,8 @@ namespace nebbie {
 void World::clear() {
     zones.clear();
     rooms.clear();
+    mobiles.clear();
+    objects.clear();
 }
 
 const Zone* World::zone_for_vnum(long vnum) const {
@@ -37,6 +39,26 @@ Room* World::find_room(long vnum) {
 const Room* World::find_room(long vnum) const {
     auto it = rooms.find(vnum);
     return it == rooms.end() ? nullptr : &it->second;
+}
+
+Mobile* World::find_mobile(long vnum) {
+    auto it = mobiles.find(vnum);
+    return it == mobiles.end() ? nullptr : &it->second;
+}
+
+const Mobile* World::find_mobile(long vnum) const {
+    auto it = mobiles.find(vnum);
+    return it == mobiles.end() ? nullptr : &it->second;
+}
+
+GameObject* World::find_object(long vnum) {
+    auto it = objects.find(vnum);
+    return it == objects.end() ? nullptr : &it->second;
+}
+
+const GameObject* World::find_object(long vnum) const {
+    auto it = objects.find(vnum);
+    return it == objects.end() ? nullptr : &it->second;
 }
 
 LibPaths lib_paths_for(const std::string& lib_root) {

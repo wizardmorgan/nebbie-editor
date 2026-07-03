@@ -18,7 +18,12 @@ void usage() {
         << "  nebbiedit zone list\n"
         << "  nebbiedit zone show <zone-number>\n"
         << "  nebbiedit room show <vnum>\n"
-        << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n\n"
+        << "  nebbiedit mob list\n"
+        << "  nebbiedit mob show <vnum>\n"
+        << "  nebbiedit obj list\n"
+        << "  nebbiedit obj show <vnum>\n"
+        << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n"
+        << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n\n"
         << "Reference server: https://github.com/NebbieArcane/Server\n"
         << "Test server fork: https://github.com/wizardmorgan/nebbietest\n";
 }
@@ -26,6 +31,8 @@ void usage() {
 void print_info(const nebbie::World& world) {
     std::cout << "Zones: " << world.zones.size() << '\n';
     std::cout << "Rooms: " << world.rooms.size() << '\n';
+    std::cout << "Mobiles: " << world.mobiles.size() << '\n';
+    std::cout << "Objects: " << world.objects.size() << '\n';
 }
 
 bool run(int argc, char** argv) {
@@ -107,6 +114,64 @@ bool run(int argc, char** argv) {
             return true;
         }
 
+        if (cmd == "mob") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& [vnum, mob] : g_world.mobiles) {
+                    std::cout << vnum << " " << mob.short_descr << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const long vnum = std::stol(argv[3]);
+                const nebbie::Mobile* mob = g_world.find_mobile(vnum);
+                if (!mob) {
+                    std::cerr << "Mobile not loaded: " << vnum << '\n';
+                    return false;
+                }
+                std::cout << "#" << mob->vnum << " " << mob->short_descr << '\n';
+                std::cout << "Type: " << mob->mobtype
+                          << " Level: " << mob->level
+                          << " Alignment: " << mob->alignment << '\n';
+                std::cout << "Hit: " << mob->hit_dice
+                          << " Dam: " << mob->dam_dice << '\n';
+                return true;
+            }
+        }
+
+        if (cmd == "obj") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& [vnum, obj] : g_world.objects) {
+                    std::cout << vnum << " " << obj.short_descr << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const long vnum = std::stol(argv[3]);
+                const nebbie::GameObject* obj = g_world.find_object(vnum);
+                if (!obj) {
+                    std::cerr << "Object not loaded: " << vnum << '\n';
+                    return false;
+                }
+                std::cout << "#" << obj->vnum << " " << obj->short_descr << '\n';
+                std::cout << "Type: " << obj->type_flag
+                          << " Weight: " << obj->weight
+                          << " Cost: " << obj->cost << '\n';
+                std::cout << "Affects: " << obj->affects.size()
+                          << " Extras: " << obj->extra_descs.size() << '\n';
+                return true;
+            }
+        }
+
         if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "zon") {
             const std::string mode = argv[3];
             if (mode == "roundtrip") {
@@ -126,6 +191,31 @@ bool run(int argc, char** argv) {
                     throw std::runtime_error("room count mismatch after roundtrip");
                 }
                 std::cout << "Round-trip OK in " << out << '\n';
+                return true;
+            }
+        }
+
+        if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "lib") {
+            const std::string mode = argv[3];
+            if (mode == "roundtrip") {
+                nebbie::World original;
+                nebbie::load_lib(original, argv[4]);
+                const std::filesystem::path out = argv[5];
+                std::filesystem::create_directories(out);
+                nebbie::save_myst_zon(original, out / "myst.zon");
+                nebbie::save_myst_wld(original, out / "myst.wld");
+                nebbie::save_myst_mob(original, out / "myst.mob");
+                nebbie::save_myst_obj(original, out / "myst.obj");
+
+                nebbie::World roundtrip;
+                nebbie::load_lib(roundtrip, out);
+                if (roundtrip.zones.size() != original.zones.size()
+                    || roundtrip.rooms.size() != original.rooms.size()
+                    || roundtrip.mobiles.size() != original.mobiles.size()
+                    || roundtrip.objects.size() != original.objects.size()) {
+                    throw std::runtime_error("count mismatch after lib roundtrip");
+                }
+                std::cout << "Lib round-trip OK in " << out << '\n';
                 return true;
             }
         }

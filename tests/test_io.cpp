@@ -20,11 +20,19 @@ int main(int argc, char** argv) {
         if (world.rooms.empty()) {
             throw std::runtime_error("expected at least one room");
         }
+        if (world.mobiles.empty()) {
+            throw std::runtime_error("expected at least one mobile");
+        }
+        if (world.objects.empty()) {
+            throw std::runtime_error("expected at least one object");
+        }
 
         const auto out = std::filesystem::temp_directory_path() / "nebbie-editor-test";
         std::filesystem::create_directories(out);
         nebbie::save_myst_zon(world, out / "myst.zon");
         nebbie::save_myst_wld(world, out / "myst.wld");
+        nebbie::save_myst_mob(world, out / "myst.mob");
+        nebbie::save_myst_obj(world, out / "myst.obj");
 
         nebbie::World roundtrip;
         nebbie::load_lib(roundtrip, out);
@@ -33,6 +41,12 @@ int main(int argc, char** argv) {
         }
         if (roundtrip.rooms.size() != world.rooms.size()) {
             throw std::runtime_error("room roundtrip failed");
+        }
+        if (roundtrip.mobiles.size() != world.mobiles.size()) {
+            throw std::runtime_error("mobile roundtrip failed");
+        }
+        if (roundtrip.objects.size() != world.objects.size()) {
+            throw std::runtime_error("object roundtrip failed");
         }
 
         std::cout << "OK\n";

@@ -1,0 +1,23 @@
+#1
+Puff~
+Puff~
+Puff the Magic Dragon is here, attempting to sell Magic Mushrooms.
+~
+You see nothing special
+~
+1|2097152 0 1000 S
+26 1 -10 5d10+550 4d6+3
+0 5000 
+8 8 5 0 1 0
+#2
+morgul nazgul spettro dwimmerlaik~
+Dwimmerlaik, il Signore di Morgul~
+Dwimmerlaik, il Signore di Morgul, uno dei terribili spettri dell'anello.
+~
+Vestito di nero, quasi invisibile nell'ombra, sprigiona un'aura di pura malvagita'.
+~
+1|2097152|4194304 2|2048|65536|524288|33554432 -1000 A 3
+50 -8 -10 300 3d6+15
+-1 0 8 29
+8 8 4 64 256|512|2048|8192 0
+%%

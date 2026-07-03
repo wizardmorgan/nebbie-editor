@@ -115,12 +115,87 @@ std::string fread_word(FILE* fp) {
     return word;
 }
 
+std::string fread_line(FILE* fp) {
+    std::string line;
+    int c = std::fgetc(fp);
+
+    while (c != EOF && c != '\n' && c != '\r') {
+        line.push_back(static_cast<char>(c));
+        c = std::fgetc(fp);
+    }
+
+    while (c == '\r' || c == '\n') {
+        c = std::fgetc(fp);
+    }
+    if (c != EOF) {
+        std::ungetc(c, fp);
+    }
+
+    return line;
+}
+
+namespace {
+
+long parse_number_token(const std::string& token, std::size_t& index) {
+    long value = 0;
+    bool sign = false;
+
+    if (index < token.size() && token[index] == '+') {
+        ++index;
+    } else if (index < token.size() && token[index] == '-') {
+        sign = true;
+        ++index;
+    }
+
+    if (index >= token.size() || !std::isdigit(static_cast<unsigned char>(token[index]))) {
+        throw ParseError("Bad number format");
+    }
+
+    while (index < token.size() && std::isdigit(static_cast<unsigned char>(token[index]))) {
+        value = value * 10 + (token[index] - '0');
+        ++index;
+    }
+
+    if (index < token.size() && token[index] == '|') {
+        ++index;
+        value += parse_number_token(token, index);
+    }
+
+    return sign ? -value : value;
+}
+
+} // namespace
+
+std::vector<long> parse_numbers(const std::string& line) {
+    std::vector<long> values;
+    std::size_t index = 0;
+
+    while (index < line.size()) {
+        while (index < line.size() && is_space(static_cast<unsigned char>(line[index]))) {
+            ++index;
+        }
+        if (index >= line.size()) {
+            break;
+        }
+        values.push_back(parse_number_token(line, index));
+    }
+
+    return values;
+}
+
 std::string fread_string(FILE* fp) {
     std::string result;
     int c = std::fgetc(fp);
 
     if (c == EOF) {
         throw ParseError("Unexpected end of file while reading string");
+    }
+
+    while (c == '\r' || c == '\n') {
+        c = std::fgetc(fp);
+        if (c == EOF) {
+            throw ParseError("Unexpected end of file while reading string");
+        }
     }
 
     if (c == '~') {
