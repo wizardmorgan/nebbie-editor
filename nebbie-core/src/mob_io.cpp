@@ -72,6 +72,33 @@ std::vector<std::string> split_combat_tokens(const std::string& line) {
     return tokens;
 }
 
+std::vector<std::string> normalize_combat_tokens(const std::vector<std::string>& tokens) {
+    std::vector<std::string> normalized;
+    for (std::size_t i = 0; i < tokens.size(); ++i) {
+        if (tokens[i] == "=") {
+            if (i + 1 < tokens.size()) {
+                std::size_t hint = 0;
+                if (tokens[i + 1][hint] == '+' || tokens[i + 1][hint] == '-') {
+                    ++hint;
+                }
+                if (hint < tokens[i + 1].size()
+                    && std::isdigit(static_cast<unsigned char>(tokens[i + 1][hint]))) {
+                    ++i;
+                }
+            }
+            continue;
+        }
+
+        const auto eq = tokens[i].find('=');
+        if (eq != std::string::npos) {
+            normalized.push_back(tokens[i].substr(0, eq));
+        } else {
+            normalized.push_back(tokens[i]);
+        }
+    }
+    return normalized;
+}
+
 int parse_combat_int(const std::string& token) {
     if (token.empty()) {
         throw ParseError("empty combat number");
@@ -97,7 +124,7 @@ long read_mob_number(FILE* fp, const Mobile& mob, const char* field);
 std::string fread_rest_of_line(FILE* fp);
 
 void parse_combat_line(const std::string& combat_line, Mobile& mob) {
-    const auto tokens = split_combat_tokens(combat_line);
+    const auto tokens = normalize_combat_tokens(split_combat_tokens(combat_line));
     if (tokens.size() < 5) {
         throw ParseError(mob_context(mob) + ": invalid combat line (expected 5 fields): \"" + combat_line + "\"");
     }
@@ -403,7 +430,21 @@ void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCall
         }
 
         Mobile mob;
-        mob.vnum = fread_number(fp);
+        try {
+            mob.vnum = fread_number(fp);
+        } catch (const ParseError& ex) {
+            std::string message = "reading mob vnum";
+            if (last_loaded_vnum >= 0) {
+                message += " after mob #" + std::to_string(last_loaded_vnum) + " ("
+                           + std::to_string(loaded_count) + " mobiles loaded)";
+            }
+            const std::string nearby = peek_file_line(fp);
+            if (!nearby.empty()) {
+                message += " near line: \"" + nearby + "\"";
+            }
+            message += ": " + std::string(ex.what());
+            throw ParseError(message);
+        }
         if (mob.vnum >= 99999) {
             break;
         }

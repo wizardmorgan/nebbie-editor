@@ -28,7 +28,7 @@ The druid stands here.
 You see nothing special.
 ~
 1|2097152 0 1000 A 1
-11 15=5 0 8 2d6+4
+11 15 = 5 0 8 2d6+4
 -1 0 8 1
 8 8 0
 #2112
@@ -54,7 +54,7 @@ The high druid is standing here.
 ~
 ~
 1|2 0 0 A
-20 7=4 4 40 3d3+3
+20 7 = 4 4 40 3d3+3
 -1 500 1 1
-8 8 5 0 2048=512 0
+8 8 5 0 2048 = 512 0
 %%

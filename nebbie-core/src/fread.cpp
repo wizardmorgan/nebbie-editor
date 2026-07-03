@@ -12,6 +12,25 @@ bool is_space(int c) {
     return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v';
 }
 
+std::string format_unexpected_char(int c) {
+    if (c == EOF) {
+        return "EOF";
+    }
+    if (c == '\n') {
+        return "\\n";
+    }
+    if (c == '\r') {
+        return "\\r";
+    }
+    if (c == '\t') {
+        return "\\t";
+    }
+    if (std::isprint(c)) {
+        return std::string(1, static_cast<char>(c));
+    }
+    return "0x" + std::to_string(static_cast<unsigned char>(c));
+}
+
 } // namespace
 
 char fread_letter(FILE* fp) {
@@ -59,7 +78,7 @@ long fread_number(FILE* fp) {
     }
 
     if (!std::isdigit(c)) {
-        throw ParseError("Bad number format");
+        throw ParseError("Bad number format (found '" + format_unexpected_char(c) + "')");
     }
 
     while (std::isdigit(c)) {
@@ -202,7 +221,8 @@ long parse_number_token(const std::string& token, std::size_t& index) {
     }
 
     if (index >= token.size() || !std::isdigit(static_cast<unsigned char>(token[index]))) {
-        throw ParseError("Bad number format");
+        const char found = index < token.size() ? token[index] : '\0';
+        throw ParseError("Bad number format (found '" + format_unexpected_char(found) + "')");
     }
 
     while (index < token.size() && std::isdigit(static_cast<unsigned char>(token[index]))) {
@@ -237,6 +257,13 @@ std::vector<long> parse_numbers(const std::string& line) {
         }
         if (index >= line.size()) {
             break;
+        }
+        if (line[index] == '=') {
+            ++index;
+            while (index < line.size() && std::isdigit(static_cast<unsigned char>(line[index]))) {
+                ++index;
+            }
+            continue;
         }
         values.push_back(parse_number_token(line, index));
     }
