@@ -5,6 +5,8 @@ add_library(nebbie-core
     src/wld_io.cpp
     src/mob_io.cpp
     src/obj_io.cpp
+    src/shp_io.cpp
+    src/spe_io.cpp
     src/lib_io.cpp
 )
 

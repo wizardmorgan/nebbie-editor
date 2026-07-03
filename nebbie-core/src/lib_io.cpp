@@ -30,6 +30,17 @@ void load_lib(World& world, const std::filesystem::path& lib_root, ProgressCallb
     if (std::filesystem::exists(obj)) {
         load_myst_obj(world, obj, progress);
     }
+
+    const auto shp = lib_root / SHOP_FILE;
+    const auto spe = lib_root / SPECIAL_FILE;
+
+    if (std::filesystem::exists(shp)) {
+        load_myst_shp(world, shp, progress);
+    }
+
+    if (std::filesystem::exists(spe)) {
+        load_myst_spe(world, spe, progress);
+    }
 }
 
 } // namespace nebbie

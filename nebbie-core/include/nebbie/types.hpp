@@ -118,6 +118,40 @@ struct GameObject {
     std::string forbidden_room;
 };
 
+constexpr int MAX_SHOP_PROD = 5;
+constexpr int MAX_SHOP_TRADE = 5;
+
+struct Shop {
+    long vnum = 0;
+    int producing[MAX_SHOP_PROD] = {};
+    float profit_buy = 1.0f;
+    float profit_sell = 1.0f;
+    int trade_types[MAX_SHOP_TRADE] = {};
+    std::string no_such_item1;
+    std::string no_such_item2;
+    std::string do_not_buy;
+    std::string missing_cash1;
+    std::string missing_cash2;
+    std::string message_buy;
+    std::string message_sell;
+    int temper1 = 0;
+    int temper2 = 0;
+    int keeper = 0;
+    int with_who = 0;
+    int in_room = 0;
+    int open1 = 0;
+    int close1 = 0;
+    int open2 = 0;
+    int close2 = 0;
+};
+
+struct SpecialProc {
+    char type = 0;
+    long vnum = 0;
+    std::string procedure;
+    std::string params;
+};
+
 struct LibPaths {
     std::string root;
     std::string zon;

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <cctype>
 
 namespace {
 
@@ -22,6 +23,10 @@ void usage() {
         << "  nebbiedit mob show <vnum>\n"
         << "  nebbiedit obj list\n"
         << "  nebbiedit obj show <vnum>\n"
+        << "  nebbiedit shop list\n"
+        << "  nebbiedit shop show <vnum>\n"
+        << "  nebbiedit spe list\n"
+        << "  nebbiedit spe show <vnum>\n"
         << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n"
         << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n\n"
         << "Reference server: https://github.com/NebbieArcane/Server\n"
@@ -33,6 +38,8 @@ void print_info(const nebbie::World& world) {
     std::cout << "Rooms: " << world.rooms.size() << '\n';
     std::cout << "Mobiles: " << world.mobiles.size() << '\n';
     std::cout << "Objects: " << world.objects.size() << '\n';
+    std::cout << "Shops: " << world.shops.size() << '\n';
+    std::cout << "Special procs: " << world.special_procs.size() << '\n';
 }
 
 bool run(int argc, char** argv) {
@@ -172,6 +179,77 @@ bool run(int argc, char** argv) {
             }
         }
 
+        if (cmd == "shop") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& shop : g_world.shops) {
+                    std::cout << shop.vnum << " keeper=" << shop.keeper
+                              << " room=" << shop.in_room << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const long vnum = std::stol(argv[3]);
+                for (const auto& shop : g_world.shops) {
+                    if (shop.vnum != vnum) {
+                        continue;
+                    }
+                    std::cout << "#" << shop.vnum << " keeper=" << shop.keeper
+                              << " room=" << shop.in_room << '\n';
+                    std::cout << "Buy x" << shop.profit_buy
+                              << " Sell x" << shop.profit_sell << '\n';
+                    std::cout << "Hours: " << shop.open1 << "-" << shop.close1
+                              << ", " << shop.open2 << "-" << shop.close2 << '\n';
+                    return true;
+                }
+                std::cerr << "Shop not loaded: " << vnum << '\n';
+                return false;
+            }
+        }
+
+        if (cmd == "spe") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& spe : g_world.special_procs) {
+                    std::cout << static_cast<char>(std::toupper(spe.type))
+                              << ' ' << spe.vnum << ' ' << spe.procedure;
+                    if (!spe.params.empty()) {
+                        std::cout << ' ' << spe.params;
+                    }
+                    std::cout << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const long vnum = std::stol(argv[3]);
+                bool found = false;
+                for (const auto& spe : g_world.special_procs) {
+                    if (spe.vnum != vnum) {
+                        continue;
+                    }
+                    found = true;
+                    std::cout << static_cast<char>(std::toupper(spe.type))
+                              << ' ' << spe.vnum << ' ' << spe.procedure << '\n';
+                    if (!spe.params.empty()) {
+                        std::cout << "Params: " << spe.params << '\n';
+                    }
+                }
+                if (!found) {
+                    std::cerr << "No special proc for vnum: " << vnum << '\n';
+                    return false;
+                }
+                return true;
+            }
+        }
+
         if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "zon") {
             const std::string mode = argv[3];
             if (mode == "roundtrip") {
@@ -206,13 +284,17 @@ bool run(int argc, char** argv) {
                 nebbie::save_myst_wld(original, out / "myst.wld");
                 nebbie::save_myst_mob(original, out / "myst.mob");
                 nebbie::save_myst_obj(original, out / "myst.obj");
+                nebbie::save_myst_shp(original, out / "myst.shp");
+                nebbie::save_myst_spe(original, out / "myst.spe");
 
                 nebbie::World roundtrip;
                 nebbie::load_lib(roundtrip, out);
                 if (roundtrip.zones.size() != original.zones.size()
                     || roundtrip.rooms.size() != original.rooms.size()
                     || roundtrip.mobiles.size() != original.mobiles.size()
-                    || roundtrip.objects.size() != original.objects.size()) {
+                    || roundtrip.objects.size() != original.objects.size()
+                    || roundtrip.shops.size() != original.shops.size()
+                    || roundtrip.special_procs.size() != original.special_procs.size()) {
                     throw std::runtime_error("count mismatch after lib roundtrip");
                 }
                 std::cout << "Lib round-trip OK in " << out << '\n';

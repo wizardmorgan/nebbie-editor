@@ -119,16 +119,16 @@ std::string fread_line(FILE* fp) {
     std::string line;
     int c = std::fgetc(fp);
 
-    while (c != EOF && c != '\n' && c != '\r') {
-        line.push_back(static_cast<char>(c));
-        c = std::fgetc(fp);
-    }
-
     while (c == '\r' || c == '\n') {
         c = std::fgetc(fp);
     }
-    if (c != EOF) {
-        std::ungetc(c, fp);
+    if (c == EOF) {
+        return line;
+    }
+
+    while (c != EOF && c != '\n' && c != '\r') {
+        line.push_back(static_cast<char>(c));
+        c = std::fgetc(fp);
     }
 
     return line;

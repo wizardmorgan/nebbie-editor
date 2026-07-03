@@ -26,6 +26,12 @@ int main(int argc, char** argv) {
         if (world.objects.empty()) {
             throw std::runtime_error("expected at least one object");
         }
+        if (world.shops.empty()) {
+            throw std::runtime_error("expected at least one shop");
+        }
+        if (world.special_procs.empty()) {
+            throw std::runtime_error("expected at least one special proc");
+        }
 
         const auto out = std::filesystem::temp_directory_path() / "nebbie-editor-test";
         std::filesystem::create_directories(out);
@@ -33,6 +39,8 @@ int main(int argc, char** argv) {
         nebbie::save_myst_wld(world, out / "myst.wld");
         nebbie::save_myst_mob(world, out / "myst.mob");
         nebbie::save_myst_obj(world, out / "myst.obj");
+        nebbie::save_myst_shp(world, out / "myst.shp");
+        nebbie::save_myst_spe(world, out / "myst.spe");
 
         nebbie::World roundtrip;
         nebbie::load_lib(roundtrip, out);
@@ -47,6 +55,12 @@ int main(int argc, char** argv) {
         }
         if (roundtrip.objects.size() != world.objects.size()) {
             throw std::runtime_error("object roundtrip failed");
+        }
+        if (roundtrip.shops.size() != world.shops.size()) {
+            throw std::runtime_error("shop roundtrip failed");
+        }
+        if (roundtrip.special_procs.size() != world.special_procs.size()) {
+            throw std::runtime_error("special proc roundtrip failed");
         }
 
         std::cout << "OK\n";

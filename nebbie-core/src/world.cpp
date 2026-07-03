@@ -11,6 +11,8 @@ void World::clear() {
     rooms.clear();
     mobiles.clear();
     objects.clear();
+    shops.clear();
+    special_procs.clear();
 }
 
 const Zone* World::zone_for_vnum(long vnum) const {

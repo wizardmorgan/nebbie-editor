@@ -14,6 +14,8 @@ public:
     std::map<long, Room> rooms;
     std::map<long, Mobile> mobiles;
     std::map<long, GameObject> objects;
+    std::vector<Shop> shops;
+    std::vector<SpecialProc> special_procs;
 
     void clear();
 

@@ -10,10 +10,10 @@ Questo repository è indipendente dal codice del server: non servono permessi su
 |------|-----------|-------|
 | `myst.zon` | Zone e reset | Lettura/scrittura |
 | `myst.wld` | Stanze | Lettura/scrittura |
-| `myst.mob` | Mob | Lettura/scrittura iniziale |
-| `myst.obj` | Oggetti | Lettura/scrittura iniziale |
-| `myst.shp` | Negozi | Pianificato |
-| `myst.spe` | Special proc | Pianificato |
+| `myst.mob` | Mob | Lettura/scrittura |
+| `myst.obj` | Oggetti | Lettura/scrittura |
+| `myst.shp` | Negozi | Lettura/scrittura |
+| `myst.spe` | Special proc | Lettura/scrittura |
 | `myst.dam` | Messaggi danno | Pianificato |
 | `myst.act` | Social | Pianificato |
 | `myst.pos` | Pose | Pianificato |
