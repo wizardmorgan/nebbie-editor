@@ -92,6 +92,9 @@ int parse_combat_int(const std::string& token) {
 
 bool peek_is_mob_boundary(FILE* fp);
 void read_trailing_sound_strings(FILE* fp, Mobile& mob);
+std::vector<long> parse_mob_numbers(const Mobile& mob, const std::string& line, const char* field);
+long read_mob_number(FILE* fp, const Mobile& mob, const char* field);
+std::string fread_rest_of_line(FILE* fp);
 
 void parse_combat_line(const std::string& combat_line, Mobile& mob) {
     const auto tokens = split_combat_tokens(combat_line);
@@ -124,7 +127,7 @@ void read_new_mob_stats(FILE* fp, Mobile& mob) {
         throw ParseError(mob_context(mob) + ": invalid combat line: \"" + combat_line + "\"");
     }
 
-    const auto gold_line = parse_numbers(fread_line(fp));
+    const auto gold_line = parse_mob_numbers(mob, fread_line(fp), "gold");
     if (gold_line.empty()) {
         throw ParseError("Missing mob gold line");
     }
@@ -140,7 +143,7 @@ void read_new_mob_stats(FILE* fp, Mobile& mob) {
         mob.race = 0;
     }
 
-    const auto pos_line = parse_numbers(fread_line(fp));
+    const auto pos_line = parse_mob_numbers(mob, fread_line(fp), "position");
     if (pos_line.size() < 3) {
         throw ParseError("Invalid mob position line");
     }
@@ -202,15 +205,48 @@ bool mob_has_trailing_sounds(const Mobile& mob) {
     return !mob.sounds.empty() || !mob.distant_sounds.empty() || !mob.extra_sound_strings.empty();
 }
 
+std::string fread_rest_of_line(FILE* fp) {
+    std::string line;
+    int c = std::fgetc(fp);
+    while (c != EOF && c != '\n' && c != '\r') {
+        line.push_back(static_cast<char>(c));
+        c = std::fgetc(fp);
+    }
+    if (c == '\r') {
+        c = std::fgetc(fp);
+    }
+    if (c != '\n' && c != EOF) {
+        std::ungetc(c, fp);
+    }
+    return line;
+}
+
+std::vector<long> parse_mob_numbers(const Mobile& mob, const std::string& line, const char* field) {
+    try {
+        return parse_numbers(line);
+    } catch (const ParseError& ex) {
+        throw ParseError(std::string(mob_context(mob)) + ": invalid " + field + " line \"" + line
+                         + "\" (" + ex.what() + ")");
+    }
+}
+
+long read_mob_number(FILE* fp, const Mobile& mob, const char* field) {
+    try {
+        return fread_number(fp);
+    } catch (const ParseError& ex) {
+        throw ParseError(std::string(mob_context(mob)) + ": invalid " + field + " (" + ex.what() + ")");
+    }
+}
+
 void read_mobile_entry(FILE* fp, Mobile& mob) {
     mob.name = fread_string(fp);
     mob.short_descr = fread_string(fp);
     mob.long_descr = fread_string(fp);
     mob.description = fread_string(fp);
 
-    mob.act = fread_number(fp);
-    mob.affected_by = fread_number(fp);
-    mob.alignment = fread_number(fp);
+    mob.act = read_mob_number(fp, mob, "act");
+    mob.affected_by = read_mob_number(fp, mob, "affected_by");
+    mob.alignment = read_mob_number(fp, mob, "alignment");
 
     mob.mobtype = fread_letter(fp);
     if (!is_new_mob_type(mob.mobtype)) {
@@ -218,13 +254,22 @@ void read_mobile_entry(FILE* fp, Mobile& mob) {
                          + "' (expected S, A, N, B, or L)");
     }
 
+    const std::string type_tail = fread_rest_of_line(fp);
     if (mob.mobtype == 'A' || mob.mobtype == 'B' || mob.mobtype == 'L') {
-        mob.mult_att = static_cast<int>(fread_number(fp));
+        std::string tail = type_tail;
+        while (!tail.empty() && (tail.front() == ' ' || tail.front() == '\t')) {
+            tail.erase(tail.begin());
+        }
+        if (!tail.empty()) {
+            const auto nums = parse_mob_numbers(mob, tail, "mult_att");
+            mob.mult_att = nums.empty() ? 1 : static_cast<int>(nums[0]);
+        } else {
+            mob.mult_att = 1;
+        }
     } else {
         mob.mult_att = 1;
     }
 
-    fread_to_eol(fp);
     read_new_mob_stats(fp, mob);
 }
 

@@ -73,6 +73,14 @@ int main(int argc, char** argv) {
             }
         }
 
+        const nebbie::Mobile* mob_2113 = world.find_mobile(2113);
+        if (mob_2113) {
+            if (mob_2113->mult_att != 1 || mob_2113->hitroll != 7 || mob_2113->hit_bonus != 40
+                || mob_2113->meta_immune != 2048) {
+                throw std::runtime_error("mob #2113 type line or = annotations not parsed correctly");
+            }
+        }
+
         const nebbie::Mobile* vendor_ron = world.find_mobile(1717);
         if (vendor_ron && vendor_ron->mobtype == 'L') {
             if (vendor_ron->sounds.find("Compai") == std::string::npos

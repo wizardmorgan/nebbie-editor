@@ -47,4 +47,14 @@ A distant hymn drifts through the stone corridors.
 ~
 Whispers rustle among the leaves.
 ~
+#2113
+high druid guildmaster~
+The high druid~
+The high druid is standing here.
+~
+~
+1|2 0 0 A
+20 7=4 4 40 3d3+3
+-1 500 1 1
+8 8 5 0 2048=512 0
 %%

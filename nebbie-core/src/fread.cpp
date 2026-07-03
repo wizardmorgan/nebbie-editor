@@ -210,6 +210,13 @@ long parse_number_token(const std::string& token, std::size_t& index) {
         ++index;
     }
 
+    if (index < token.size() && token[index] == '=') {
+        ++index;
+        while (index < token.size() && std::isdigit(static_cast<unsigned char>(token[index]))) {
+            ++index;
+        }
+    }
+
     if (index < token.size() && token[index] == '|') {
         ++index;
         value += parse_number_token(token, index);
