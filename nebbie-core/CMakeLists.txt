@@ -1,0 +1,10 @@
+add_library(nebbie-core
+    src/fread.cpp
+    src/world.cpp
+    src/zon_io.cpp
+    src/wld_io.cpp
+    src/lib_io.cpp
+)
+
+target_include_directories(nebbie-core PUBLIC include)
+target_compile_features(nebbie-core PUBLIC cxx_std_17)

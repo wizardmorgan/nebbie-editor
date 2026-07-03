@@ -1,0 +1,13 @@
+build/
+cmake-build-*/
+.cache/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+.DS_Store
+.idea/
+.vscode/
+*.user
+vendor/nebbietest/

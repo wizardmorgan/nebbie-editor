@@ -1,0 +1,148 @@
+#include "nebbie/fread.hpp"
+
+#include <cctype>
+#include <cstdlib>
+
+namespace nebbie {
+
+namespace {
+
+bool is_space(int c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v';
+}
+
+} // namespace
+
+char fread_letter(FILE* fp) {
+    int c;
+    do {
+        c = std::fgetc(fp);
+        if (c == EOF) {
+            throw ParseError("Unexpected end of file while reading letter");
+        }
+    } while (is_space(c));
+    return static_cast<char>(c);
+}
+
+void fread_to_eol(FILE* fp) {
+    int c;
+    do {
+        c = std::fgetc(fp);
+    } while (c != '\n' && c != '\r' && c != EOF);
+
+    do {
+        c = std::fgetc(fp);
+    } while (c == '\n' || c == '\r');
+    if (c != EOF) {
+        std::ungetc(c, fp);
+    }
+}
+
+long fread_number(FILE* fp) {
+    int c;
+    do {
+        c = std::fgetc(fp);
+        if (c == EOF) {
+            throw ParseError("Unexpected end of file while reading number");
+        }
+    } while (is_space(c));
+
+    long number = 0;
+    bool sign = false;
+
+    if (c == '+') {
+        c = std::fgetc(fp);
+    } else if (c == '-') {
+        sign = true;
+        c = std::fgetc(fp);
+    }
+
+    if (!std::isdigit(c)) {
+        throw ParseError("Bad number format");
+    }
+
+    while (std::isdigit(c)) {
+        number = number * 10 + (c - '0');
+        c = std::fgetc(fp);
+    }
+
+    if (sign) {
+        number = -number;
+    }
+
+    if (c == '|') {
+        number += fread_number(fp);
+    } else if (c != ' ' && c != EOF) {
+        std::ungetc(c, fp);
+    }
+
+    return number;
+}
+
+long fread_if_number(FILE* fp) {
+    int c = std::fgetc(fp);
+    if (c == EOF) {
+        return 0;
+    }
+    if (!std::isdigit(c) && c != '-' && c != '+') {
+        std::ungetc(c, fp);
+        return 0;
+    }
+    std::ungetc(c, fp);
+    return fread_number(fp);
+}
+
+std::string fread_word(FILE* fp) {
+    std::string word;
+    int c;
+
+    do {
+        c = std::fgetc(fp);
+        if (c == EOF) {
+            throw ParseError("Unexpected end of file while reading word");
+        }
+    } while (is_space(c));
+
+    while (!is_space(c) && c != EOF) {
+        word.push_back(static_cast<char>(c));
+        c = std::fgetc(fp);
+    }
+
+    if (c != EOF) {
+        std::ungetc(c, fp);
+    }
+
+    return word;
+}
+
+std::string fread_string(FILE* fp) {
+    std::string result;
+    int c = std::fgetc(fp);
+
+    if (c == EOF) {
+        throw ParseError("Unexpected end of file while reading string");
+    }
+
+    if (c == '~') {
+        return result;
+    }
+
+    while (true) {
+        if (c == '~') {
+            break;
+        }
+        if (c == '\r') {
+            c = std::fgetc(fp);
+            continue;
+        }
+        if (c == EOF) {
+            throw ParseError("Unterminated string");
+        }
+        result.push_back(static_cast<char>(c));
+        c = std::fgetc(fp);
+    }
+
+    return result;
+}
+
+} // namespace nebbie
