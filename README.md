@@ -45,6 +45,18 @@ ctest --test-dir build
 
 Comandi utili in `edit`: `room set`, `mob set`, `obj set`, `validate`, `save`, `quit`.
 
+## Interfaccia grafica (Qt)
+
+Richiede Qt 6 (`qt6-base-dev` su Debian/Ubuntu).
+
+```bash
+sudo apt-get install qt6-base-dev   # Linux
+CXX=g++ cmake -S . -B build && cmake --build build
+./build/nebbie-qt/nebbieedit tests/fixtures
+```
+
+Funzioni MVP: apri libreria, elenco stanze/mob/oggetti, modifica campi base, valida, salva.
+
 ## Uso CLI (generale)
 
 ```bash
@@ -92,6 +104,7 @@ Per testare contro un server reale puoi usare il fork:
 ```
 nebbie-core/   Libreria C++17 (parser + modello)
 nebbiedit/     CLI
+nebbie-qt/     GUI Qt (nebbieedit)
 tests/         Fixture e test automatici
 docs/          Documentazione tecnica
 ```

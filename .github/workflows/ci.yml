@@ -15,6 +15,9 @@ jobs:
       - name: Fetch nebbietest data
         run: ./scripts/fetch-test-data.sh
 
+      - name: Install Qt6
+        run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
+
       - name: Configure
         run: CXX=g++ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
@@ -39,3 +42,6 @@ jobs:
 
       - name: Nebbietest phase-4 roundtrip
         run: ctest --test-dir build -R nebbietest-phase4 --output-on-failure
+
+      - name: Build Qt GUI
+        run: test -x build/nebbie-qt/nebbieedit

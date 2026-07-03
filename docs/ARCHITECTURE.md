@@ -17,7 +17,7 @@ mudroot/lib/
 
 1. **nebbie-core** — modello in memoria + I/O
 2. **nebbiedit** — CLI Linux/macOS
-3. **nebbie-qt** (futuro) — GUI
+3. **nebbie-qt** — GUI Qt (`nebbieedit`): stanze/mob/oggetti, valida, salva
 
 ## Fasi
 
@@ -27,4 +27,5 @@ mudroot/lib/
 4. `myst.dam` + `myst.act` + `myst.pos` + `myst.gui`
 5. Validazione referenze incrociate (`validate_world`, `nebbiedit validate`)
 6. **MVP editing** — `save_lib`, `nebbiedit edit`, one-shot `room/mob/obj set`
-7. Validazione integrazione con boot del server
+7. **GUI minima** — `nebbieedit` (Qt): browse + edit + save
+8. Validazione integrazione con boot del server
