@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world.hpp"
+#include "lib_context.hpp"
 
 #include <filesystem>
 #include <functional>
@@ -21,6 +22,9 @@ void load_myst_act(World& world, const std::filesystem::path& path, ProgressCall
 void load_myst_pos(World& world, const std::filesystem::path& path, ProgressCallback progress = {});
 void load_myst_gui(World& world, const std::filesystem::path& path, ProgressCallback progress = {});
 void load_lib(World& world, const std::filesystem::path& lib_root, ProgressCallback progress = {});
+void load_lib(World& world, const std::filesystem::path& lib_root, LibContext& context,
+              ProgressCallback progress = {});
+void save_lib(const World& world, const LibContext& context, ProgressCallback progress = {});
 
 void save_myst_zon(const World& world, const std::filesystem::path& path, ProgressCallback progress = {});
 void save_myst_wld(const World& world, const std::filesystem::path& path, ProgressCallback progress = {});

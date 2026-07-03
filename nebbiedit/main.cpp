@@ -2,6 +2,9 @@
 #include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
 
+#include "cli_parse.hpp"
+#include "shell.hpp"
+
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -37,6 +40,11 @@ void usage() {
         << "  nebbiedit guild list\n"
         << "  nebbiedit guild show <name>\n"
         << "  nebbiedit validate <lib-directory>\n"
+        << "  nebbiedit edit <lib-directory>\n"
+        << "  nebbiedit room set <lib-directory> <vnum> [--name T] [--desc T] [--sector N]\n"
+        << "  nebbiedit mob set <lib-directory> <vnum> [--short T] [--level N] [--alignment N]\n"
+        << "  nebbiedit obj set <lib-directory> <vnum> [--short T] [--cost N] [--weight N]\n"
+        << "  (append --force to one-shot set commands to save despite validation errors)\n"
         << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n"
         << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n\n"
         << "Reference server: https://github.com/NebbieArcane/Server\n"
@@ -413,6 +421,38 @@ bool run(int argc, char** argv) {
             return report.ok();
         }
 
+        if (cmd == "edit") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            return nebbiedit::run_shell(argv[2]) == 0;
+        }
+
+        if (cmd == "room" && argc >= 5 && std::string(argv[2]) == "set") {
+            const std::vector<std::string> args(argv + 1, argv + argc);
+            const auto flags = nebbiedit::parse_flags(args, 4);
+            const bool force = flags.count("force") > 0;
+            const long vnum = std::stol(argv[4]);
+            return nebbiedit::run_room_set(argv[3], vnum, flags, force);
+        }
+
+        if (cmd == "mob" && argc >= 5 && std::string(argv[2]) == "set") {
+            const std::vector<std::string> args(argv + 1, argv + argc);
+            const auto flags = nebbiedit::parse_flags(args, 4);
+            const bool force = flags.count("force") > 0;
+            const long vnum = std::stol(argv[4]);
+            return nebbiedit::run_mob_set(argv[3], vnum, flags, force);
+        }
+
+        if (cmd == "obj" && argc >= 5 && std::string(argv[2]) == "set") {
+            const std::vector<std::string> args(argv + 1, argv + argc);
+            const auto flags = nebbiedit::parse_flags(args, 4);
+            const bool force = flags.count("force") > 0;
+            const long vnum = std::stol(argv[4]);
+            return nebbiedit::run_obj_set(argv[3], vnum, flags, force);
+        }
+
         if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "zon") {
             const std::string mode = argv[3];
             if (mode == "roundtrip") {
@@ -440,19 +480,13 @@ bool run(int argc, char** argv) {
             const std::string mode = argv[3];
             if (mode == "roundtrip") {
                 nebbie::World original;
-                nebbie::load_lib(original, argv[4]);
+                nebbie::LibContext context;
+                nebbie::load_lib(original, argv[4], context);
                 const std::filesystem::path out = argv[5];
                 std::filesystem::create_directories(out);
-                nebbie::save_myst_zon(original, out / "myst.zon");
-                nebbie::save_myst_wld(original, out / "myst.wld");
-                nebbie::save_myst_mob(original, out / "myst.mob");
-                nebbie::save_myst_obj(original, out / "myst.obj");
-                nebbie::save_myst_shp(original, out / "myst.shp");
-                nebbie::save_myst_spe(original, out / "myst.spe");
-                nebbie::save_myst_dam(original, out / "myst.dam");
-                nebbie::save_myst_act(original, out / "myst.act");
-                nebbie::save_myst_pos(original, out / "myst.pos");
-                nebbie::save_myst_gui(original, out / "myst.gui");
+                nebbie::LibContext out_ctx = context;
+                out_ctx.root = out;
+                nebbie::save_lib(original, out_ctx);
 
                 nebbie::World roundtrip;
                 nebbie::load_lib(roundtrip, out);

@@ -7,8 +7,15 @@ target_link_libraries(nebbie-validate-tests PRIVATE nebbie-core)
 add_executable(nebbie-phase4-tests test_phase4.cpp)
 target_link_libraries(nebbie-phase4-tests PRIVATE nebbie-core)
 
+add_executable(nebbie-mvp-tests test_mvp.cpp)
+target_link_libraries(nebbie-mvp-tests PRIVATE nebbie-core)
+
 add_test(NAME load-fixtures COMMAND nebbie-core-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
 add_test(NAME validate-fixtures COMMAND nebbie-validate-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
+
+add_test(NAME mvp-edit-workflow
+         COMMAND nebbie-mvp-tests ${CMAKE_SOURCE_DIR}/tests/fixtures
+                                  ${CMAKE_BINARY_DIR}/mvp-work-lib)
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.act")
     add_test(NAME nebbietest-phase4 COMMAND nebbie-phase4-tests

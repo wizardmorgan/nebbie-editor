@@ -27,7 +27,25 @@ cmake --build build
 ctest --test-dir build
 ```
 
-## Uso CLI
+## Uso CLI (MVP)
+
+```bash
+# Ispeziona
+./build/nebbiedit/nebbiedit info tests/fixtures
+./build/nebbiedit/nebbiedit validate tests/fixtures
+
+# Modifica one-shot (carica → modifica → valida → salva)
+./build/nebbiedit/nebbiedit room set tests/fixtures 3001 --name "Nuova stanza" --desc "Testo"
+./build/nebbiedit/nebbiedit mob set tests/fixtures 1 --short "Puff aggiornato" --level 30
+./build/nebbiedit/nebbiedit obj set tests/fixtures 1 --short "Elmo nuovo" --cost 99
+
+# Sessione interattiva
+./build/nebbiedit/nebbiedit edit tests/fixtures
+```
+
+Comandi utili in `edit`: `room set`, `mob set`, `obj set`, `validate`, `save`, `quit`.
+
+## Uso CLI (generale)
 
 ```bash
 ./build/nebbiedit/nebbiedit info tests/fixtures

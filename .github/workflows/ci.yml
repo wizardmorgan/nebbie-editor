@@ -30,5 +30,12 @@ jobs:
       - name: Validate fixtures
         run: ./build/nebbiedit/nebbiedit validate tests/fixtures
 
+      - name: MVP one-shot edit
+        run: |
+          rm -rf /tmp/nebbie-mvp-cli
+          cp -a tests/fixtures /tmp/nebbie-mvp-cli
+          ./build/nebbiedit/nebbiedit room set /tmp/nebbie-mvp-cli 3001 --name "Stanza MVP CLI"
+          ./build/nebbiedit/nebbiedit validate /tmp/nebbie-mvp-cli
+
       - name: Nebbietest phase-4 roundtrip
         run: ctest --test-dir build -R nebbietest-phase4 --output-on-failure
