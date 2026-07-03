@@ -72,7 +72,7 @@ void load_myst_zon(World& world, const std::filesystem::path& path, ProgressCall
 
         while (true) {
             int c = std::fgetc(fp);
-            while (c != EOF && (c == ' ' || c == '\t')) {
+            while (c != EOF && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
                 c = std::fgetc(fp);
             }
             if (c == EOF) {

@@ -28,4 +28,5 @@ mudroot/lib/
 5. Validazione referenze incrociate (`validate_world`, `nebbiedit validate`)
 6. **MVP editing** — `save_lib`, `nebbiedit edit`, one-shot `room/mob/obj set`
 7. **GUI minima** — `nebbieedit` (Qt): browse + edit + save
-8. Validazione integrazione con boot del server
+8. **Editor reset zona** — tab Zone in GUI, API `add_zone_reset` / `update_zone_reset`
+9. Validazione integrazione con boot del server

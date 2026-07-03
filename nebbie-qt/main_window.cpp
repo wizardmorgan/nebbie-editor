@@ -192,6 +192,78 @@ void MainWindow::setupUi() {
     obj_list_ = obj_page.list;
     tabs_->addTab(obj_page.page, "Oggetti");
 
+    auto* zone_page = new QWidget;
+    auto* zone_layout = new QVBoxLayout(zone_page);
+    auto* zone_splitter = new QSplitter;
+
+    auto* zone_left = new QWidget;
+    auto* zone_left_layout = new QVBoxLayout(zone_left);
+    zone_left_layout->addWidget(new QLabel("Zone"));
+    zone_list_ = new QListWidget;
+    zone_list_->setMinimumWidth(160);
+    zone_left_layout->addWidget(zone_list_);
+    zone_splitter->addWidget(zone_left);
+
+    auto* zone_right = new QWidget;
+    auto* zone_right_layout = new QVBoxLayout(zone_right);
+    zone_info_ = new QLabel("Seleziona una zona");
+    zone_info_->setWordWrap(true);
+    zone_right_layout->addWidget(zone_info_);
+
+    zone_right_layout->addWidget(new QLabel("Reset (myst.zon)"));
+    reset_list_ = new QListWidget;
+    reset_list_->setMinimumHeight(140);
+    zone_right_layout->addWidget(reset_list_);
+
+    auto* reset_form = new QFormLayout;
+    reset_command_ = new QComboBox;
+    for (const char cmd : {'M', 'O', 'G', 'E', 'P', 'D', 'C', 'H'}) {
+        reset_command_->addItem(QString(QChar(cmd)), QChar(cmd));
+    }
+    reset_hint_ = new QLabel;
+    reset_hint_->setWordWrap(true);
+    reset_if_flag_ = new QSpinBox;
+    reset_if_flag_->setRange(0, 999);
+    reset_arg1_ = new QSpinBox;
+    reset_arg1_->setRange(-1, 999999);
+    reset_arg2_ = new QSpinBox;
+    reset_arg2_->setRange(-1, 999999);
+    reset_arg3_ = new QSpinBox;
+    reset_arg3_->setRange(-1, 999999);
+    reset_arg4_ = new QSpinBox;
+    reset_arg4_->setRange(-1, 999999);
+    reset_form->addRow("Comando:", reset_command_);
+    reset_form->addRow("Guida:", reset_hint_);
+    reset_form->addRow("if_flag:", reset_if_flag_);
+    reset_form->addRow("arg1:", reset_arg1_);
+    reset_form->addRow("arg2:", reset_arg2_);
+    reset_form->addRow("arg3:", reset_arg3_);
+    reset_form->addRow("arg4:", reset_arg4_);
+    zone_right_layout->addLayout(reset_form);
+
+    auto* reset_buttons = new QHBoxLayout;
+    auto* reset_add = new QPushButton("Nuovo reset");
+    reset_apply_ = new QPushButton("Applica");
+    reset_remove_ = new QPushButton("Elimina");
+    auto* reset_up = new QPushButton("Su");
+    auto* reset_down = new QPushButton("Giu");
+    auto* reset_goto_room = new QPushButton("Vai stanza");
+    auto* reset_goto_entity = new QPushButton("Vai entita");
+    reset_buttons->addWidget(reset_add);
+    reset_buttons->addWidget(reset_apply_);
+    reset_buttons->addWidget(reset_remove_);
+    reset_buttons->addWidget(reset_up);
+    reset_buttons->addWidget(reset_down);
+    reset_buttons->addWidget(reset_goto_room);
+    reset_buttons->addWidget(reset_goto_entity);
+    zone_right_layout->addLayout(reset_buttons);
+    zone_splitter->addWidget(zone_right);
+    zone_splitter->setStretchFactor(0, 1);
+    zone_splitter->setStretchFactor(1, 3);
+    zone_layout->addWidget(zone_splitter);
+    zone_tab_ = zone_page;
+    tabs_->addTab(zone_page, "Zone");
+
     validation_log_ = new QPlainTextEdit;
     validation_log_->setReadOnly(true);
     validation_log_->setPlaceholderText("Esegui Valida per vedere errori e avvisi.");
@@ -224,6 +296,17 @@ void MainWindow::setupUi() {
     connect(exit_list_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) {
         goToExitTarget();
     });
+    connect(zone_list_, &QListWidget::currentRowChanged, this, [this](int) { onZoneSelected(); });
+    connect(reset_list_, &QListWidget::currentRowChanged, this, [this](int) { onResetSelected(); });
+    connect(reset_command_, &QComboBox::currentIndexChanged, this, &MainWindow::onResetCommandChanged);
+    connect(reset_add, &QPushButton::clicked, this, &MainWindow::addZoneReset);
+    connect(reset_apply_, &QPushButton::clicked, this, &MainWindow::applyResetChanges);
+    connect(reset_remove_, &QPushButton::clicked, this, &MainWindow::removeSelectedReset);
+    connect(reset_up, &QPushButton::clicked, this, &MainWindow::moveResetUp);
+    connect(reset_down, &QPushButton::clicked, this, &MainWindow::moveResetDown);
+    connect(reset_goto_room, &QPushButton::clicked, this, &MainWindow::goToResetRoom);
+    connect(reset_goto_entity, &QPushButton::clicked, this, &MainWindow::goToResetEntity);
+    updateResetFieldHints();
 }
 
 void MainWindow::setupMenus() {
@@ -289,6 +372,7 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     refreshRoomList();
     refreshMobList();
     refreshObjectList();
+    refreshZoneList();
 
     const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
                               .arg(QString::fromStdString(path.string()))
@@ -337,6 +421,306 @@ void MainWindow::refreshObjectList() {
         }
         addListItem(obj_list_, vnum,
                     QString("#%1 %2").arg(vnum).arg(QString::fromStdString(obj.short_descr)));
+    }
+}
+
+void MainWindow::refreshZoneList() {
+    zone_list_->clear();
+    for (const auto& zone : world_.zones) {
+        const QString label = QString("#%1 %2 [%3-%4]")
+                                  .arg(zone.num)
+                                  .arg(QString::fromStdString(zone.name))
+                                  .arg(zone.bottom)
+                                  .arg(zone.top);
+        addListItem(zone_list_, zone.num, label);
+    }
+    if (zone_list_->count() > 0 && zone_list_->currentRow() < 0) {
+        zone_list_->setCurrentRow(0);
+    }
+}
+
+void MainWindow::refreshResetList(const int zone_num) {
+    reset_list_->clear();
+    const nebbie::Zone* zone = nebbie::find_zone(world_, zone_num);
+    if (!zone) {
+        return;
+    }
+
+    for (std::size_t i = 0; i < zone->commands.size(); ++i) {
+        const auto& cmd = zone->commands[i];
+        const QString label = QString("[%1] %2")
+                                  .arg(i)
+                                  .arg(QString::fromStdString(nebbie::reset_command_summary(cmd)));
+        reset_list_->addItem(label);
+        reset_list_->item(static_cast<int>(i))->setData(Qt::UserRole, static_cast<qlonglong>(i));
+        if (!nebbie::is_editable_reset_command(cmd.command)) {
+            reset_list_->item(static_cast<int>(i))->setFlags(Qt::NoItemFlags);
+        }
+    }
+}
+
+int MainWindow::currentZoneNum() const {
+    const auto* item = zone_list_->currentItem();
+    if (!item) {
+        return 0;
+    }
+    return static_cast<int>(item->data(Qt::UserRole).toLongLong());
+}
+
+int MainWindow::currentResetIndex() const {
+    const auto* item = reset_list_->currentItem();
+    if (!item) {
+        return -1;
+    }
+    return static_cast<int>(item->data(Qt::UserRole).toLongLong());
+}
+
+void MainWindow::selectZoneByNum(const int zone_num) {
+    for (int i = 0; i < zone_list_->count(); ++i) {
+        if (zone_list_->item(i)->data(Qt::UserRole).toLongLong() == zone_num) {
+            zone_list_->setCurrentRow(i);
+            tabs_->setCurrentWidget(zone_tab_);
+            return;
+        }
+    }
+}
+
+void MainWindow::updateResetFieldHints() {
+    const QChar cmd = reset_command_->currentData().toChar();
+    QString hint;
+    switch (cmd.toLatin1()) {
+    case 'M':
+        hint = "Mobile: if_flag | mob vnum | max in stanza | stanza vnum | max globali";
+        break;
+    case 'O':
+        hint = "Oggetto: if_flag | obj vnum | max in stanza | stanza vnum | max globali";
+        break;
+    case 'G':
+        hint = "Give: if_flag | obj vnum | max";
+        break;
+    case 'E':
+        hint = "Equip: if_flag | obj vnum | max | slot equip";
+        break;
+    case 'P':
+        hint = "Put: if_flag | obj vnum | max | contenitore vnum";
+        break;
+    case 'D':
+        hint = "Door: if_flag | stanza vnum | direzione uscita";
+        break;
+    case 'C':
+        hint = "Command: if_flag | mob vnum | comando";
+        break;
+    case 'H':
+        hint = "Hour: if_flag | stanza vnum | ora";
+        break;
+    default:
+        hint = "Seleziona un comando reset";
+        break;
+    }
+    reset_hint_->setText(hint);
+}
+
+void MainWindow::loadResetForm(const nebbie::ResetCommand& cmd) {
+    const int idx = reset_command_->findData(QChar(cmd.command));
+    if (idx >= 0) {
+        reset_command_->setCurrentIndex(idx);
+    }
+    reset_if_flag_->setValue(cmd.if_flag);
+    reset_arg1_->setValue(cmd.arg1);
+    reset_arg2_->setValue(cmd.arg2);
+    reset_arg3_->setValue(cmd.arg3);
+    reset_arg4_->setValue(cmd.arg4);
+    updateResetFieldHints();
+
+    const bool editable = nebbie::is_editable_reset_command(cmd.command);
+    reset_command_->setEnabled(editable);
+    reset_if_flag_->setEnabled(editable);
+    reset_arg1_->setEnabled(editable);
+    reset_arg2_->setEnabled(editable);
+    reset_arg3_->setEnabled(editable);
+    reset_arg4_->setEnabled(editable);
+    reset_apply_->setEnabled(editable);
+    reset_remove_->setEnabled(editable);
+}
+
+nebbie::ResetCommand MainWindow::readResetForm() const {
+    nebbie::ResetCommand cmd;
+    cmd.command = reset_command_->currentData().toChar().toLatin1();
+    cmd.if_flag = reset_if_flag_->value();
+    cmd.arg1 = reset_arg1_->value();
+    cmd.arg2 = reset_arg2_->value();
+    cmd.arg3 = reset_arg3_->value();
+    cmd.arg4 = reset_arg4_->value();
+    return cmd;
+}
+
+void MainWindow::onZoneSelected() {
+    const int zone_num = currentZoneNum();
+    if (zone_num <= 0) {
+        return;
+    }
+    const nebbie::Zone* zone = nebbie::find_zone(world_, zone_num);
+    if (!zone) {
+        return;
+    }
+
+    zone_info_->setText(QString("Zona #%1 %2\nStanze: %3-%4 | Lifespan: %5 | Reset mode: %6")
+                            .arg(zone->num)
+                            .arg(QString::fromStdString(zone->name))
+                            .arg(zone->bottom)
+                            .arg(zone->top)
+                            .arg(zone->lifespan)
+                            .arg(zone->reset_mode));
+    refreshResetList(zone_num);
+}
+
+void MainWindow::onResetSelected() {
+    const int zone_num = currentZoneNum();
+    const int index = currentResetIndex();
+    if (zone_num <= 0 || index < 0) {
+        return;
+    }
+    const nebbie::Zone* zone = nebbie::find_zone(world_, zone_num);
+    if (!zone || static_cast<std::size_t>(index) >= zone->commands.size()) {
+        return;
+    }
+    loadResetForm(zone->commands[static_cast<std::size_t>(index)]);
+}
+
+void MainWindow::onResetCommandChanged() {
+    updateResetFieldHints();
+}
+
+void MainWindow::addZoneReset() {
+    const int zone_num = currentZoneNum();
+    if (zone_num <= 0) {
+        QMessageBox::information(this, "Zone", "Seleziona una zona.");
+        return;
+    }
+    const nebbie::Zone* zone = nebbie::find_zone(world_, zone_num);
+    if (!zone) {
+        return;
+    }
+
+    const char command = reset_command_->currentData().toChar().toLatin1();
+    const nebbie::ResetCommand cmd = nebbie::default_zone_reset(command, *zone, world_);
+    if (!nebbie::add_zone_reset(world_, zone_num, cmd)) {
+        QMessageBox::warning(this, "Zone", "Impossibile aggiungere il reset.");
+        return;
+    }
+
+    refreshResetList(zone_num);
+    reset_list_->setCurrentRow(reset_list_->count() - 1);
+    markDirty();
+    setStatus(QString("Aggiunto reset %1 in zona %2.").arg(QChar(command)).arg(zone_num));
+}
+
+void MainWindow::applyResetChanges() {
+    const int zone_num = currentZoneNum();
+    const int index = currentResetIndex();
+    if (zone_num <= 0 || index < 0) {
+        QMessageBox::information(this, "Zone", "Seleziona un reset modificabile.");
+        return;
+    }
+
+    const nebbie::ResetCommand cmd = readResetForm();
+    if (!nebbie::update_zone_reset(world_, zone_num, static_cast<std::size_t>(index), cmd)) {
+        QMessageBox::warning(this, "Zone", "Impossibile aggiornare il reset.");
+        return;
+    }
+
+    refreshResetList(zone_num);
+    reset_list_->setCurrentRow(index);
+    markDirty();
+    setStatus(QString("Reset [%1] aggiornato.").arg(index));
+}
+
+void MainWindow::removeSelectedReset() {
+    const int zone_num = currentZoneNum();
+    const int index = currentResetIndex();
+    if (zone_num <= 0 || index < 0) {
+        QMessageBox::information(this, "Zone", "Seleziona un reset da eliminare.");
+        return;
+    }
+    if (!nebbie::remove_zone_reset(world_, zone_num, static_cast<std::size_t>(index))) {
+        QMessageBox::warning(this, "Zone", "Impossibile eliminare il reset.");
+        return;
+    }
+
+    refreshResetList(zone_num);
+    markDirty();
+    setStatus(QString("Reset [%1] eliminato.").arg(index));
+}
+
+void MainWindow::moveResetUp() {
+    const int zone_num = currentZoneNum();
+    const int index = currentResetIndex();
+    if (zone_num <= 0 || index <= 0) {
+        return;
+    }
+    if (!nebbie::move_zone_reset(world_, zone_num, static_cast<std::size_t>(index),
+                                 static_cast<std::size_t>(index - 1))) {
+        return;
+    }
+    refreshResetList(zone_num);
+    reset_list_->setCurrentRow(index - 1);
+    markDirty();
+}
+
+void MainWindow::moveResetDown() {
+    const int zone_num = currentZoneNum();
+    const int index = currentResetIndex();
+    if (zone_num <= 0 || index < 0 || index + 1 >= reset_list_->count()) {
+        return;
+    }
+    if (!nebbie::move_zone_reset(world_, zone_num, static_cast<std::size_t>(index),
+                                 static_cast<std::size_t>(index + 1))) {
+        return;
+    }
+    refreshResetList(zone_num);
+    reset_list_->setCurrentRow(index + 1);
+    markDirty();
+}
+
+void MainWindow::goToResetRoom() {
+    const nebbie::ResetCommand cmd = readResetForm();
+    long room_vnum = 0;
+    switch (cmd.command) {
+    case 'M':
+    case 'O':
+        room_vnum = cmd.arg3;
+        break;
+    case 'D':
+    case 'H':
+        room_vnum = cmd.arg1;
+        break;
+    default:
+        room_vnum = cmd.arg3 > 0 ? cmd.arg3 : cmd.arg1;
+        break;
+    }
+    if (room_vnum <= 0) {
+        return;
+    }
+    if (!world_.find_room(room_vnum)) {
+        QMessageBox::information(this, "Zone",
+                                 QString("La stanza #%1 non esiste in questa libreria.").arg(room_vnum));
+        return;
+    }
+    selectRoomByVnum(room_vnum);
+}
+
+void MainWindow::goToResetEntity() {
+    const nebbie::ResetCommand cmd = readResetForm();
+    if (cmd.command == 'M' || cmd.command == 'C') {
+        if (cmd.arg1 > 0) {
+            selectMobByVnum(cmd.arg1);
+        }
+        return;
+    }
+    if (cmd.command == 'O' || cmd.command == 'G' || cmd.command == 'E' || cmd.command == 'P') {
+        if (cmd.arg1 > 0) {
+            selectObjectByVnum(cmd.arg1);
+        }
     }
 }
 

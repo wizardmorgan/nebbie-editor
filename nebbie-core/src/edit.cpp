@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <stdexcept>
 
 namespace nebbie {
@@ -94,6 +95,27 @@ GameObject make_default_object(long vnum, const ObjEdit& edit) {
     obj.cost = edit.cost >= 0 ? edit.cost : 0;
     obj.cost_per_day = 0;
     return obj;
+}
+
+bool room_in_zone(long vnum, const Zone& zone) {
+    return vnum >= zone.bottom && vnum <= zone.top;
+}
+
+long first_room_in_zone(const Zone& zone, const World& world) {
+    for (const auto& [vnum, _] : world.rooms) {
+        if (room_in_zone(vnum, zone)) {
+            return vnum;
+        }
+    }
+    return zone.bottom > 0 ? zone.bottom : 1;
+}
+
+long first_mobile_vnum(const World& world) {
+    return world.mobiles.empty() ? 1 : world.mobiles.begin()->first;
+}
+
+long first_object_vnum(const World& world) {
+    return world.objects.empty() ? 1 : world.objects.begin()->first;
 }
 
 } // namespace
@@ -373,6 +395,184 @@ bool remove_room_exit(World& world, long room_vnum, int direction) {
         return false;
     }
     room->exits.erase(it, room->exits.end());
+    return true;
+}
+
+Zone* find_zone(World& world, int zone_num) {
+    for (auto& zone : world.zones) {
+        if (zone.num == zone_num) {
+            return &zone;
+        }
+    }
+    return nullptr;
+}
+
+const Zone* find_zone(const World& world, int zone_num) {
+    for (const auto& zone : world.zones) {
+        if (zone.num == zone_num) {
+            return &zone;
+        }
+    }
+    return nullptr;
+}
+
+bool is_editable_reset_command(const char command) {
+    return std::strchr("HFMCOGEPD", command) != nullptr;
+}
+
+std::string reset_command_summary(const ResetCommand& cmd) {
+    if (cmd.command == '*') {
+        std::string line = cmd.raw_line;
+        while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+            line.pop_back();
+        }
+        return std::string("Commento: ") + line;
+    }
+    if (cmd.command == ';') {
+        return "Separatore";
+    }
+
+    std::string summary(1, cmd.command);
+    summary += " if=" + std::to_string(cmd.if_flag);
+    summary += " a1=" + std::to_string(cmd.arg1);
+    summary += " a2=" + std::to_string(cmd.arg2);
+    summary += " a3=" + std::to_string(cmd.arg3);
+    summary += " a4=" + std::to_string(cmd.arg4);
+
+    switch (cmd.command) {
+    case 'M':
+        summary += " (mob #" + std::to_string(cmd.arg1) + " → stanza #" + std::to_string(cmd.arg3)
+                   + ")";
+        break;
+    case 'O':
+        summary += " (obj #" + std::to_string(cmd.arg1) + " → stanza #" + std::to_string(cmd.arg3)
+                   + ")";
+        break;
+    case 'G':
+        summary += " (obj #" + std::to_string(cmd.arg1) + " inventario mob)";
+        break;
+    case 'E':
+        summary += " (obj #" + std::to_string(cmd.arg1) + " equip)";
+        break;
+    case 'P':
+        summary += " (obj #" + std::to_string(cmd.arg1) + " in contenitore #"
+                   + std::to_string(cmd.arg3) + ")";
+        break;
+    case 'D':
+        summary += " (stanza #" + std::to_string(cmd.arg1) + " uscita " + std::to_string(cmd.arg2)
+                   + ")";
+        break;
+    case 'C':
+        summary += " (mob #" + std::to_string(cmd.arg1) + ")";
+        break;
+    case 'H':
+        summary += " (orario stanza)";
+        break;
+    default:
+        break;
+    }
+    return summary;
+}
+
+ResetCommand default_zone_reset(const char command, const Zone& zone, const World& world) {
+    ResetCommand cmd;
+    cmd.command = command;
+    cmd.if_flag = 0;
+    cmd.arg1 = -1;
+    cmd.arg2 = 0;
+    cmd.arg3 = -1;
+    cmd.arg4 = 0;
+
+    const long room = first_room_in_zone(zone, world);
+    const long mob = first_mobile_vnum(world);
+    const long obj = first_object_vnum(world);
+
+    switch (command) {
+    case 'M':
+        cmd.arg1 = static_cast<int>(mob);
+        cmd.arg2 = 1;
+        cmd.arg3 = static_cast<int>(room);
+        cmd.arg4 = 1;
+        break;
+    case 'O':
+        cmd.arg1 = static_cast<int>(obj);
+        cmd.arg2 = 1;
+        cmd.arg3 = static_cast<int>(room);
+        cmd.arg4 = 1;
+        break;
+    case 'G':
+    case 'E':
+        cmd.arg1 = static_cast<int>(obj);
+        cmd.arg2 = 1;
+        cmd.arg3 = command == 'E' ? 0 : -1;
+        break;
+    case 'P':
+        cmd.arg1 = static_cast<int>(obj);
+        cmd.arg2 = 1;
+        cmd.arg3 = static_cast<int>(obj);
+        break;
+    case 'D':
+        cmd.arg1 = static_cast<int>(room);
+        cmd.arg2 = 0;
+        break;
+    case 'C':
+        cmd.arg1 = static_cast<int>(mob);
+        cmd.arg2 = 0;
+        break;
+    case 'H':
+        cmd.arg1 = static_cast<int>(room);
+        cmd.arg2 = 0;
+        break;
+    default:
+        break;
+    }
+    return cmd;
+}
+
+bool add_zone_reset(World& world, const int zone_num, const ResetCommand& cmd) {
+    Zone* zone = find_zone(world, zone_num);
+    if (!zone || !is_editable_reset_command(cmd.command)) {
+        return false;
+    }
+    zone->commands.push_back(cmd);
+    return true;
+}
+
+bool update_zone_reset(World& world, const int zone_num, const std::size_t index, const ResetCommand& cmd) {
+    Zone* zone = find_zone(world, zone_num);
+    if (!zone || index >= zone->commands.size()) {
+        return false;
+    }
+    if (!is_editable_reset_command(cmd.command)) {
+        return false;
+    }
+    zone->commands[index] = cmd;
+    zone->commands[index].raw_line.clear();
+    return true;
+}
+
+bool remove_zone_reset(World& world, const int zone_num, const std::size_t index) {
+    Zone* zone = find_zone(world, zone_num);
+    if (!zone || index >= zone->commands.size()) {
+        return false;
+    }
+    const ResetCommand& cmd = zone->commands[index];
+    if (!is_editable_reset_command(cmd.command)) {
+        return false;
+    }
+    zone->commands.erase(zone->commands.begin() + static_cast<std::ptrdiff_t>(index));
+    return true;
+}
+
+bool move_zone_reset(World& world, const int zone_num, const std::size_t from_index, const std::size_t to_index) {
+    Zone* zone = find_zone(world, zone_num);
+    if (!zone || from_index >= zone->commands.size() || to_index >= zone->commands.size()
+        || from_index == to_index) {
+        return false;
+    }
+    ResetCommand cmd = zone->commands[from_index];
+    zone->commands.erase(zone->commands.begin() + static_cast<std::ptrdiff_t>(from_index));
+    zone->commands.insert(zone->commands.begin() + static_cast<std::ptrdiff_t>(to_index), cmd);
     return true;
 }
 

@@ -50,6 +50,16 @@ private slots:
     void applyExitChanges();
     void removeSelectedExit();
     void goToExitTarget();
+    void onZoneSelected();
+    void onResetSelected();
+    void onResetCommandChanged();
+    void addZoneReset();
+    void applyResetChanges();
+    void removeSelectedReset();
+    void moveResetUp();
+    void moveResetDown();
+    void goToResetRoom();
+    void goToResetEntity();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -62,6 +72,14 @@ private:
     void refreshMobList();
     void refreshObjectList();
     void refreshExitList(long room_vnum);
+    void refreshZoneList();
+    void refreshResetList(int zone_num);
+    void updateResetFieldHints();
+    void loadResetForm(const nebbie::ResetCommand& cmd);
+    nebbie::ResetCommand readResetForm() const;
+    int currentZoneNum() const;
+    int currentResetIndex() const;
+    void selectZoneByNum(int zone_num);
     void selectRoomByVnum(long vnum);
     void selectMobByVnum(long vnum);
     void selectObjectByVnum(long vnum);
@@ -112,6 +130,20 @@ private:
     QSpinBox* obj_cost_ = nullptr;
     QSpinBox* obj_weight_ = nullptr;
 
+    QListWidget* zone_list_ = nullptr;
+    QLabel* zone_info_ = nullptr;
+    QListWidget* reset_list_ = nullptr;
+    QComboBox* reset_command_ = nullptr;
+    QLabel* reset_hint_ = nullptr;
+    QSpinBox* reset_if_flag_ = nullptr;
+    QSpinBox* reset_arg1_ = nullptr;
+    QSpinBox* reset_arg2_ = nullptr;
+    QSpinBox* reset_arg3_ = nullptr;
+    QSpinBox* reset_arg4_ = nullptr;
+    QPushButton* reset_apply_ = nullptr;
+    QPushButton* reset_remove_ = nullptr;
+
     QPlainTextEdit* validation_log_ = nullptr;
     QWidget* validation_tab_ = nullptr;
+    QWidget* zone_tab_ = nullptr;
 };

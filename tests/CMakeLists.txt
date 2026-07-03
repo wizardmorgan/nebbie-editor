@@ -24,6 +24,13 @@ add_test(NAME create-edit-workflow
          COMMAND nebbie-create-tests ${CMAKE_SOURCE_DIR}/tests/fixtures
                                        ${CMAKE_BINARY_DIR}/create-work-lib)
 
+add_executable(nebbie-reset-tests test_reset.cpp)
+target_link_libraries(nebbie-reset-tests PRIVATE nebbie-core)
+
+add_test(NAME zone-reset-workflow
+         COMMAND nebbie-reset-tests ${CMAKE_SOURCE_DIR}/tests/fixtures
+                                    ${CMAKE_BINARY_DIR}/reset-work-lib)
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.act")
     add_test(NAME nebbietest-phase4 COMMAND nebbie-phase4-tests
              ${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib)

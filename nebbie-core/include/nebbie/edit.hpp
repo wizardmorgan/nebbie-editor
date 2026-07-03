@@ -66,6 +66,18 @@ bool set_room_exit(World& world, long room_vnum, const ExitEdit& edit);
 bool remove_room_exit(World& world, long room_vnum, int direction);
 const Exit* find_room_exit(const Room& room, int direction);
 
+Zone* find_zone(World& world, int zone_num);
+const Zone* find_zone(const World& world, int zone_num);
+
+bool is_editable_reset_command(char command);
+std::string reset_command_summary(const ResetCommand& cmd);
+ResetCommand default_zone_reset(char command, const Zone& zone, const World& world);
+
+bool add_zone_reset(World& world, int zone_num, const ResetCommand& cmd);
+bool update_zone_reset(World& world, int zone_num, std::size_t index, const ResetCommand& cmd);
+bool remove_zone_reset(World& world, int zone_num, std::size_t index);
+bool move_zone_reset(World& world, int zone_num, std::size_t from_index, std::size_t to_index);
+
 RoomEdit room_edit_from_flags(const std::map<std::string, std::string>& flags);
 MobEdit mob_edit_from_flags(const std::map<std::string, std::string>& flags);
 ObjEdit obj_edit_from_flags(const std::map<std::string, std::string>& flags);
