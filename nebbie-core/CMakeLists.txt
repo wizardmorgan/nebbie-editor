@@ -12,6 +12,7 @@ add_library(nebbie-core
     src/pos_io.cpp
     src/gui_io.cpp
     src/lib_io.cpp
+    src/validate.cpp
 )
 
 target_include_directories(nebbie-core PUBLIC include)

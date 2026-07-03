@@ -36,6 +36,7 @@ ctest --test-dir build
 ./build/nebbiedit/nebbiedit room show 3001
 ./build/nebbiedit/nebbiedit mob list
 ./build/nebbiedit/nebbiedit obj show 1
+./build/nebbiedit/nebbiedit validate tests/fixtures
 ./build/nebbiedit/nebbiedit convert lib roundtrip tests/fixtures /tmp/nebbie-rt
 ```
 

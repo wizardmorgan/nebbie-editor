@@ -25,4 +25,5 @@ mudroot/lib/
 2. `myst.mob` + `myst.obj`
 3. `myst.shp` + `myst.spe`
 4. `myst.dam` + `myst.act` + `myst.pos` + `myst.gui`
-5. Validazione integrazione con boot del server
+5. Validazione referenze incrociate (`validate_world`, `nebbiedit validate`)
+6. Validazione integrazione con boot del server

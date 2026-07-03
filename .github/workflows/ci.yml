@@ -12,6 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch nebbietest data
+        run: ./scripts/fetch-test-data.sh
+
       - name: Configure
         run: CXX=g++ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
@@ -23,3 +26,9 @@ jobs:
 
       - name: CLI smoke test
         run: ./build/nebbiedit/nebbiedit info tests/fixtures
+
+      - name: Validate fixtures
+        run: ./build/nebbiedit/nebbiedit validate tests/fixtures
+
+      - name: Nebbietest phase-4 roundtrip
+        run: ctest --test-dir build -R nebbietest-phase4 --output-on-failure

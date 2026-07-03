@@ -1,4 +1,5 @@
 #include "nebbie/io.hpp"
+#include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
 
 #include <filesystem>
@@ -35,6 +36,7 @@ void usage() {
         << "  nebbiedit pose show <level>\n"
         << "  nebbiedit guild list\n"
         << "  nebbiedit guild show <name>\n"
+        << "  nebbiedit validate <lib-directory>\n"
         << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n"
         << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n\n"
         << "Reference server: https://github.com/NebbieArcane/Server\n"
@@ -388,6 +390,27 @@ bool run(int argc, char** argv) {
                 std::cerr << "Guild not loaded: " << name << '\n';
                 return false;
             }
+        }
+
+        if (cmd == "validate") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            nebbie::World world;
+            nebbie::load_lib(world, argv[2], [](const std::string& msg) {
+                std::cout << msg << '\n';
+            });
+            const nebbie::ValidationReport report = nebbie::validate_world(world);
+            for (const auto& issue : report.issues) {
+                const char* level = issue.severity == nebbie::ValidationSeverity::error
+                                        ? "ERROR"
+                                        : "WARN";
+                std::cout << level << " [" << issue.category << "] " << issue.message << '\n';
+            }
+            std::cout << report.error_count() << " error(s), "
+                      << report.warning_count() << " warning(s)\n";
+            return report.ok();
         }
 
         if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "zon") {

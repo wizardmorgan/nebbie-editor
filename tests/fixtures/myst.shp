@@ -1,9 +1,9 @@
 #1518~
-1551
-1552
-3010
-3100
-3101
+1
+2
+3
+0
+0
 2.1
 0.5
 17
@@ -11,47 +11,18 @@
 0
 0
 0
-%s Ah no, guardi! Io quelle cose li' non le vendo proprio!~
-%s Non mi sembra che Lei abbia nulla del genere.~
-%s Mi dispiace ma non tratto l'usato.~
-%s Mi dispiace ma non ho abbastanza denaro al momento.~
-%s Forse dovrebbe orientarsi su qualcosa di meno costoso.~
-%s Per sole %d monete, lei ha fatto un ottimo affare.~
-%s Ecco a lei %d monete.~
+%s Negozio di prova: oggetto non disponibile.~
+%s Non hai nulla del genere.~
+%s Non compro usato.~
+%s Non ho abbastanza denaro.~
+%s Troppo costoso per te.~
+%s Ottimo affare per %d monete.~
+%s Ecco %d monete.~
 0
 1
-1505
-0
-1518
-0
-13
-14
-24
-#1519~
-3050
-3051
-3053
-1553
-1554
-2.5
-0.3
-2
-3
-4
-10
-21
-%s Ah no, guardi! Io quelle cose li' non le vendo proprio!~
-%s Non mi sembra che Lei abbia nulla del genere.~
-%s Mi dispiace ma non tratto l'usato.~
-%s Mi dispiace ma non ho abbastanza denaro al momento.~
-%s Forse dovrebbe orientarsi su qualcosa di meno costoso.~
-%s Per sole %d monete, lei ha fatto un ottimo affare.~
-%s Ecco a lei %d monete.~
-0
 1
-1506
 0
-1519
+3001
 0
 13
 14
