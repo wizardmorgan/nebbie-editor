@@ -250,6 +250,33 @@ void write_mobile_entry(FILE* fp, const Mobile& mob) {
     write_new_mob_stats(fp, mob);
 }
 
+void skip_utf8_bom(FILE* fp) {
+    const long pos = std::ftell(fp);
+    unsigned char bom[3] = {};
+    if (std::fread(bom, 1, 3, fp) == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF) {
+        return;
+    }
+    std::fseek(fp, pos, SEEK_SET);
+}
+
+char read_mob_marker(FILE* fp) {
+    while (true) {
+        const char marker = fread_letter(fp);
+        if (marker == '*') {
+            fread_to_eol(fp);
+            continue;
+        }
+        return marker;
+    }
+}
+
+std::string peek_file_line(FILE* fp) {
+    const long pos = std::ftell(fp);
+    const std::string line = fread_line(fp);
+    std::fseek(fp, pos, SEEK_SET);
+    return line;
+}
+
 } // namespace
 
 void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCallback progress) {
@@ -260,8 +287,13 @@ void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCall
         progress("Loading " + path.string());
     }
 
+    skip_utf8_bom(fp);
+
+    long last_loaded_vnum = -1;
+    std::size_t loaded_count = 0;
+
     while (true) {
-        const char marker = fread_letter(fp);
+        const char marker = read_mob_marker(fp);
         if (marker == '%') {
             if (fread_letter(fp) != '%') {
                 throw ParseError("Malformed mob file terminator");
@@ -269,7 +301,21 @@ void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCall
             break;
         }
         if (marker != '#') {
-            throw ParseError("Expected # in myst.mob");
+            const std::string hint = (marker == '$')
+                                         ? " (color/sound line? check type L mobs have two ~-terminated sound strings)"
+                                         : "";
+            const std::string context = peek_file_line(fp);
+            std::string message = "Expected # in myst.mob";
+            if (last_loaded_vnum >= 0) {
+                message += " after mob #" + std::to_string(last_loaded_vnum)
+                           + " (" + std::to_string(loaded_count) + " mobiles loaded)";
+            }
+            message += " — found '" + std::string(1, marker) + "'";
+            if (!context.empty()) {
+                message += " near line: \"" + context + "\"";
+            }
+            message += hint;
+            throw ParseError(message);
         }
 
         Mobile mob;
@@ -286,7 +332,10 @@ void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCall
             }
             throw;
         }
+        const long saved_vnum = mob.vnum;
         world.mobiles.emplace(mob.vnum, std::move(mob));
+        last_loaded_vnum = saved_vnum;
+        ++loaded_count;
     }
 
     std::fclose(fp);

@@ -409,10 +409,15 @@ bool run(int argc, char** argv) {
             }
             const std::string kind = argv[2];
             if (kind == "mob") {
-                nebbie::World world;
-                nebbie::load_myst_mob(world, argv[3]);
-                std::cout << "OK: " << world.mobiles.size() << " mobiles in " << argv[3] << '\n';
-                return true;
+                try {
+                    nebbie::World world;
+                    nebbie::load_myst_mob(world, argv[3]);
+                    std::cout << "OK: " << world.mobiles.size() << " mobiles in " << argv[3] << '\n';
+                    return true;
+                } catch (const std::exception& ex) {
+                    std::cerr << "FAILED: " << ex.what() << '\n';
+                    return false;
+                }
             }
             if (kind == "lib") {
                 nebbie::World world;
