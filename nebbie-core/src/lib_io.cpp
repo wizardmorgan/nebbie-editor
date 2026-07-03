@@ -33,6 +33,10 @@ void load_lib(World& world, const std::filesystem::path& lib_root, ProgressCallb
 
     const auto shp = lib_root / SHOP_FILE;
     const auto spe = lib_root / SPECIAL_FILE;
+    const auto dam = lib_root / DAMAGE_FILE;
+    const auto act = lib_root / SOCIAL_FILE;
+    const auto pos = lib_root / POSE_FILE;
+    const auto gui = lib_root / GUILD_FILE;
 
     if (std::filesystem::exists(shp)) {
         load_myst_shp(world, shp, progress);
@@ -40,6 +44,22 @@ void load_lib(World& world, const std::filesystem::path& lib_root, ProgressCallb
 
     if (std::filesystem::exists(spe)) {
         load_myst_spe(world, spe, progress);
+    }
+
+    if (std::filesystem::exists(dam)) {
+        load_myst_dam(world, dam, progress);
+    }
+
+    if (std::filesystem::exists(act)) {
+        load_myst_act(world, act, progress);
+    }
+
+    if (std::filesystem::exists(pos)) {
+        load_myst_pos(world, pos, progress);
+    }
+
+    if (std::filesystem::exists(gui)) {
+        load_myst_gui(world, gui, progress);
     }
 }
 

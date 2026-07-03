@@ -14,10 +14,10 @@ Questo repository è indipendente dal codice del server: non servono permessi su
 | `myst.obj` | Oggetti | Lettura/scrittura |
 | `myst.shp` | Negozi | Lettura/scrittura |
 | `myst.spe` | Special proc | Lettura/scrittura |
-| `myst.dam` | Messaggi danno | Pianificato |
-| `myst.act` | Social | Pianificato |
-| `myst.pos` | Pose | Pianificato |
-| `myst.gui` | Gilde | Pianificato |
+| `myst.dam` | Messaggi danno | Lettura/scrittura |
+| `myst.act` | Social | Lettura/scrittura |
+| `myst.pos` | Pose | Lettura/scrittura |
+| `myst.gui` | Gilde | Lettura/scrittura |
 
 ## Build
 

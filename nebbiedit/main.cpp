@@ -27,6 +27,14 @@ void usage() {
         << "  nebbiedit shop show <vnum>\n"
         << "  nebbiedit spe list\n"
         << "  nebbiedit spe show <vnum>\n"
+        << "  nebbiedit dam list\n"
+        << "  nebbiedit dam show <attack-type>\n"
+        << "  nebbiedit social list\n"
+        << "  nebbiedit social show <act-nr>\n"
+        << "  nebbiedit pose list\n"
+        << "  nebbiedit pose show <level>\n"
+        << "  nebbiedit guild list\n"
+        << "  nebbiedit guild show <name>\n"
         << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n"
         << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n\n"
         << "Reference server: https://github.com/NebbieArcane/Server\n"
@@ -40,6 +48,10 @@ void print_info(const nebbie::World& world) {
     std::cout << "Objects: " << world.objects.size() << '\n';
     std::cout << "Shops: " << world.shops.size() << '\n';
     std::cout << "Special procs: " << world.special_procs.size() << '\n';
+    std::cout << "Damage messages: " << world.damage_messages.size() << '\n';
+    std::cout << "Socials: " << world.social_messages.size() << '\n';
+    std::cout << "Poses: " << world.pose_entries.size() << '\n';
+    std::cout << "Guilds: " << world.guilds.size() << '\n';
 }
 
 bool run(int argc, char** argv) {
@@ -250,6 +262,134 @@ bool run(int argc, char** argv) {
             }
         }
 
+        if (cmd == "dam") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& msg : g_world.damage_messages) {
+                    std::cout << msg.attack_type << " hit="
+                              << msg.hit_attacker.substr(0, 40) << "...\n";
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const int type = std::stoi(argv[3]);
+                for (const auto& msg : g_world.damage_messages) {
+                    if (msg.attack_type != type) {
+                        continue;
+                    }
+                    std::cout << "Attack type " << msg.attack_type << '\n';
+                    std::cout << "Die: " << msg.die_attacker << '\n';
+                    std::cout << "Hit: " << msg.hit_attacker << '\n';
+                    return true;
+                }
+                std::cerr << "Damage message not loaded: " << type << '\n';
+                return false;
+            }
+        }
+
+        if (cmd == "social") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& msg : g_world.social_messages) {
+                    std::cout << msg.act_nr << " hide=" << msg.hide
+                              << " " << msg.char_no_arg.substr(0, 40) << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const int act_nr = std::stoi(argv[3]);
+                for (const auto& msg : g_world.social_messages) {
+                    if (msg.act_nr != act_nr) {
+                        continue;
+                    }
+                    std::cout << "#" << msg.act_nr
+                              << " hide=" << msg.hide
+                              << " min_pos=" << msg.min_victim_position << '\n';
+                    std::cout << "No arg: " << msg.char_no_arg << '\n';
+                    if (!msg.char_found.empty()) {
+                        std::cout << "Found: " << msg.char_found << '\n';
+                    }
+                    return true;
+                }
+                std::cerr << "Social not loaded: " << act_nr << '\n';
+                return false;
+            }
+        }
+
+        if (cmd == "pose") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& entry : g_world.pose_entries) {
+                    std::cout << entry.level << " "
+                              << entry.poser_msg[0].substr(0, 40) << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const int level = std::stoi(argv[3]);
+                for (const auto& entry : g_world.pose_entries) {
+                    if (entry.level != level) {
+                        continue;
+                    }
+                    std::cout << "Level " << entry.level << '\n';
+                    for (int i = 0; i < 4; ++i) {
+                        std::cout << "Class " << i << ": " << entry.poser_msg[i] << '\n';
+                    }
+                    return true;
+                }
+                std::cerr << "Pose not loaded: level " << level << '\n';
+                return false;
+            }
+        }
+
+        if (cmd == "guild") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "list") {
+                for (const auto& guild : g_world.guilds) {
+                    std::cout << guild.base_filename
+                              << " guard=" << guild.guard_mob
+                              << " bank=" << guild.banker_mob << '\n';
+                }
+                return true;
+            }
+            if (sub == "show" && argc >= 4) {
+                const std::string name = argv[3];
+                for (const auto& guild : g_world.guilds) {
+                    if (guild.base_filename != name) {
+                        continue;
+                    }
+                    std::cout << guild.base_filename << '\n';
+                    std::cout << "Guard: mob=" << guild.guard_mob
+                              << " room=" << guild.guard_room
+                              << " dir=" << guild.guard_dir << '\n';
+                    std::cout << "Bank: mob=" << guild.banker_mob
+                              << " room=" << guild.bank_room << '\n';
+                    std::cout << "XP bank: mob=" << guild.banker_xp_mob
+                              << " room=" << guild.bank_xp_room << '\n';
+                    std::cout << "Member book: " << guild.member_book_obj << '\n';
+                    return true;
+                }
+                std::cerr << "Guild not loaded: " << name << '\n';
+                return false;
+            }
+        }
+
         if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "zon") {
             const std::string mode = argv[3];
             if (mode == "roundtrip") {
@@ -286,6 +426,10 @@ bool run(int argc, char** argv) {
                 nebbie::save_myst_obj(original, out / "myst.obj");
                 nebbie::save_myst_shp(original, out / "myst.shp");
                 nebbie::save_myst_spe(original, out / "myst.spe");
+                nebbie::save_myst_dam(original, out / "myst.dam");
+                nebbie::save_myst_act(original, out / "myst.act");
+                nebbie::save_myst_pos(original, out / "myst.pos");
+                nebbie::save_myst_gui(original, out / "myst.gui");
 
                 nebbie::World roundtrip;
                 nebbie::load_lib(roundtrip, out);
@@ -294,7 +438,11 @@ bool run(int argc, char** argv) {
                     || roundtrip.mobiles.size() != original.mobiles.size()
                     || roundtrip.objects.size() != original.objects.size()
                     || roundtrip.shops.size() != original.shops.size()
-                    || roundtrip.special_procs.size() != original.special_procs.size()) {
+                    || roundtrip.special_procs.size() != original.special_procs.size()
+                    || roundtrip.damage_messages.size() != original.damage_messages.size()
+                    || roundtrip.social_messages.size() != original.social_messages.size()
+                    || roundtrip.pose_entries.size() != original.pose_entries.size()
+                    || roundtrip.guilds.size() != original.guilds.size()) {
                     throw std::runtime_error("count mismatch after lib roundtrip");
                 }
                 std::cout << "Lib round-trip OK in " << out << '\n';

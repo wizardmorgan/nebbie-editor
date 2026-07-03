@@ -16,6 +16,10 @@ public:
     std::map<long, GameObject> objects;
     std::vector<Shop> shops;
     std::vector<SpecialProc> special_procs;
+    std::vector<CombatMessage> damage_messages;
+    std::vector<SocialMessage> social_messages;
+    std::vector<PoseEntry> pose_entries;
+    std::vector<GuildEntry> guilds;
 
     void clear();
 

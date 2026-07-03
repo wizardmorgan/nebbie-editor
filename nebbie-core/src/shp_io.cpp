@@ -41,12 +41,20 @@ long parse_shop_vnum(const std::string& header) {
 }
 
 float read_float_line(FILE* fp) {
-    const auto line = fread_line(fp);
-    float value = 0.0f;
-    if (std::sscanf(line.c_str(), "%f", &value) != 1) {
+    while (true) {
+        const auto line = fread_line(fp);
+        if (line.empty()) {
+            if (std::feof(fp)) {
+                throw ParseError("Unexpected end of file in myst.shp float");
+            }
+            continue;
+        }
+        float value = 0.0f;
+        if (std::sscanf(line.c_str(), "%f", &value) == 1) {
+            return value;
+        }
         throw ParseError("Invalid float line in myst.shp: [" + line + "]");
     }
-    return value;
 }
 
 void read_shop_entry(FILE* fp, Shop& shop) {

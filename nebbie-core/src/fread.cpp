@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <sstream>
 
 namespace nebbie {
 
@@ -119,18 +120,71 @@ std::string fread_line(FILE* fp) {
     std::string line;
     int c = std::fgetc(fp);
 
-    while (c == '\r' || c == '\n') {
-        c = std::fgetc(fp);
-    }
-    if (c == EOF) {
-        return line;
-    }
-
     while (c != EOF && c != '\n' && c != '\r') {
         line.push_back(static_cast<char>(c));
         c = std::fgetc(fp);
     }
 
+    if (c == '\r') {
+        c = std::fgetc(fp);
+    }
+    if (c != '\n' && c != EOF) {
+        std::ungetc(c, fp);
+    }
+
+    return line;
+}
+
+void skip_optional_blank_line(FILE* fp) {
+    const long pos = std::ftell(fp);
+    const std::string line = fread_line(fp);
+    if (!line.empty()) {
+        std::fseek(fp, pos, SEEK_SET);
+    }
+}
+
+namespace {
+
+bool is_social_header_line(const std::string& line) {
+    if (line.empty() || line[0] == '#') {
+        return false;
+    }
+    if (line.find('$') != std::string::npos) {
+        return false;
+    }
+
+    std::istringstream iss(line);
+    int values[3] = {};
+    for (int& value : values) {
+        if (!(iss >> value)) {
+            return false;
+        }
+    }
+
+    std::string extra;
+    return !(iss >> extra);
+}
+
+} // namespace
+
+std::string fread_social_field(FILE* fp) {
+    const long pos = std::ftell(fp);
+    std::string line = fread_line(fp);
+    if (line.empty() || line[0] == '#') {
+        return {};
+    }
+    if (is_social_header_line(line)) {
+        std::fseek(fp, pos, SEEK_SET);
+        return {};
+    }
+    return line;
+}
+
+std::string fread_action(FILE* fp) {
+    std::string line = fread_line(fp);
+    if (line.empty() || line[0] == '#') {
+        return {};
+    }
     return line;
 }
 

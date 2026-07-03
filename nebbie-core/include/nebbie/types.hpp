@@ -152,6 +152,54 @@ struct SpecialProc {
     std::string params;
 };
 
+struct CombatMessage {
+    int attack_type = 0;
+    std::string die_attacker;
+    std::string die_victim;
+    std::string die_room;
+    std::string miss_attacker;
+    std::string miss_victim;
+    std::string miss_room;
+    std::string hit_attacker;
+    std::string hit_victim;
+    std::string hit_room;
+    std::string god_attacker;
+    std::string god_victim;
+    std::string god_room;
+};
+
+struct SocialMessage {
+    int act_nr = 0;
+    int hide = 0;
+    int min_victim_position = 0;
+    std::string char_no_arg;
+    std::string others_no_arg;
+    std::string char_found;
+    std::string others_found;
+    std::string vict_found;
+    std::string not_found;
+    std::string char_auto;
+    std::string others_auto;
+};
+
+struct PoseEntry {
+    int level = 0;
+    std::string poser_msg[4];
+    std::string room_msg[4];
+};
+
+struct GuildEntry {
+    std::string base_filename;
+    int guard_mob = 0;
+    int guard_room = 0;
+    int guard_dir = 0;
+    int banker_mob = 0;
+    int bank_room = 0;
+    int banker_xp_mob = 0;
+    int bank_xp_room = 0;
+    int member_book_obj = 0;
+};
+
 struct LibPaths {
     std::string root;
     std::string zon;

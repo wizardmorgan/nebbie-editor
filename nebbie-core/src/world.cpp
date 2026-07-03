@@ -13,6 +13,10 @@ void World::clear() {
     objects.clear();
     shops.clear();
     special_procs.clear();
+    damage_messages.clear();
+    social_messages.clear();
+    pose_entries.clear();
+    guilds.clear();
 }
 
 const Zone* World::zone_for_vnum(long vnum) const {
