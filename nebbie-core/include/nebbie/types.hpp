@@ -96,6 +96,7 @@ struct Mobile {
     long susceptible = 0;
     std::string sounds;
     std::string distant_sounds;
+    std::vector<std::string> extra_sound_strings;
 };
 
 struct GameObject {

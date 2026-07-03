@@ -66,7 +66,9 @@ int main(int argc, char** argv) {
             }
         }
         if (mob_sounds) {
-            if (mob_sounds->mobtype != 'A' || mob_sounds->sounds.find("chanting") == std::string::npos) {
+            if (mob_sounds->mobtype != 'A' || mob_sounds->sounds.find("chanting") == std::string::npos
+                || mob_sounds->extra_sound_strings.size() != 1
+                || mob_sounds->extra_sound_strings[0].find("Whispers") == std::string::npos) {
                 throw std::runtime_error("type A mob #2112 trailing sound strings not parsed correctly");
             }
         }

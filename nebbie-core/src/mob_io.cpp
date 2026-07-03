@@ -180,6 +180,7 @@ bool peek_is_mob_boundary(FILE* fp) {
 void read_trailing_sound_strings(FILE* fp, Mobile& mob) {
     mob.sounds.clear();
     mob.distant_sounds.clear();
+    mob.extra_sound_strings.clear();
 
     std::vector<std::string> trailing;
     while (!peek_is_mob_boundary(fp)) {
@@ -193,9 +194,12 @@ void read_trailing_sound_strings(FILE* fp, Mobile& mob) {
         mob.distant_sounds = trailing[1];
     }
     if (trailing.size() > 2) {
-        throw ParseError(mob_context(mob) + ": too many trailing sound strings ("
-                         + std::to_string(trailing.size()) + ")");
+        mob.extra_sound_strings.assign(trailing.begin() + 2, trailing.end());
     }
+}
+
+bool mob_has_trailing_sounds(const Mobile& mob) {
+    return !mob.sounds.empty() || !mob.distant_sounds.empty() || !mob.extra_sound_strings.empty();
 }
 
 void read_mobile_entry(FILE* fp, Mobile& mob) {
@@ -257,9 +261,12 @@ void write_new_mob_stats(FILE* fp, const Mobile& mob) {
         std::fprintf(fp, "%d %d %d\n", mob.position, mob.default_pos, mob.sex);
     }
 
-    if (mob.mobtype == 'L' || !mob.sounds.empty() || !mob.distant_sounds.empty()) {
+    if (mob.mobtype == 'L' || mob_has_trailing_sounds(mob)) {
         fwrite_string(fp, mob.sounds);
         fwrite_string(fp, mob.distant_sounds);
+        for (const auto& extra : mob.extra_sound_strings) {
+            fwrite_string(fp, extra);
+        }
     }
 }
 
