@@ -15,9 +15,14 @@ mudroot/lib/
 
 ## Moduli editor
 
-1. **nebbie-core** — modello in memoria + I/O
+1. **nebbie-core** — modello in memoria + I/O (portable C++17)
 2. **nebbiedit** — CLI Linux/macOS
 3. **nebbie-qt** — GUI Qt (`nebbieedit`): stanze/mob/oggetti, valida, salva
+
+## Piattaforme
+
+Linux e macOS sono supportati allo stesso livello. CI su entrambi (`build-linux`, `build-macos`).
+Vedi [PLATFORM.md](PLATFORM.md).
 
 ## Fasi
 

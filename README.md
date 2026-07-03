@@ -1,10 +1,10 @@
 # Nebbie Editor
 
-Editor di mondo per [Nebbie Arcane](https://github.com/NebbieArcane/Server), sviluppato per **Linux** e in futuro **macOS**.
+Editor di mondo per [Nebbie Arcane](https://github.com/NebbieArcane/Server), sviluppato per **Linux** e **macOS**.
 
 Questo repository è indipendente dal codice del server: non servono permessi sull'organizzazione `NebbieArcane`. Il riferimento di formato è il codice in `NebbieArcane/Server` (`src/db.cpp`, `src/db.hpp`).
 
-## File supportati (roadmap)
+## File supportati
 
 | File | Contenuto | Stato |
 |------|-----------|-------|
@@ -19,13 +19,40 @@ Questo repository è indipendente dal codice del server: non servono permessi su
 | `myst.pos` | Pose | Lettura/scrittura |
 | `myst.gui` | Gilde | Lettura/scrittura |
 
-## Build
+## Build (Linux e macOS)
 
 ```bash
-CXX=g++ cmake -S . -B build
-cmake --build build
-ctest --test-dir build
+./scripts/install-deps.sh    # dipendenze di sistema
+./scripts/build.sh --test    # configure, build, test
 ```
+
+### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt-get install -y build-essential cmake qt6-base-dev
+./scripts/build.sh --test
+./build/nebbiedit/nebbiedit info tests/fixtures
+./build/nebbie-qt/nebbieedit tests/fixtures
+```
+
+### macOS
+
+```bash
+# Xcode Command Line Tools + Homebrew: https://brew.sh
+./scripts/install-deps.sh
+./scripts/build.sh --test
+./build/nebbiedit/nebbiedit info tests/fixtures
+./build/nebbie-qt/nebbieedit tests/fixtures
+```
+
+App bundle macOS (opzionale):
+
+```bash
+./scripts/build.sh --macos-bundle
+open build/nebbie-qt/nebbieedit.app
+```
+
+Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Uso CLI (MVP)
 
@@ -43,57 +70,23 @@ ctest --test-dir build
 ./build/nebbiedit/nebbiedit edit tests/fixtures
 ```
 
-Comandi utili in `edit`: `room set`, `mob set`, `obj set`, `validate`, `save`, `quit`.
-
 ## Interfaccia grafica (Qt)
 
-Richiede Qt 6 (`qt6-base-dev` su Debian/Ubuntu).
+Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva.
 
 ```bash
-sudo apt-get install qt6-base-dev   # Linux
-CXX=g++ cmake -S . -B build && cmake --build build
-./build/nebbie-qt/nebbieedit tests/fixtures
+./build/nebbie-qt/nebbieedit /path/to/mudroot/lib
 ```
-
-Funzioni MVP: apri libreria, elenco stanze/mob/oggetti, modifica campi base, valida, salva.
-Creazione nuove entità, ricerca per vnum/nome, mappatura uscite tra stanze (tab Stanze), editor reset zona (tab Zone).
 
 ## Uso CLI (generale)
 
 ```bash
-./build/nebbiedit/nebbiedit info tests/fixtures
-./build/nebbiedit/nebbiedit load /path/to/mudroot/lib
 ./build/nebbiedit/nebbiedit zone list
 ./build/nebbiedit/nebbiedit room show 3001
-./build/nebbiedit/nebbiedit mob list
-./build/nebbiedit/nebbiedit obj show 1
-./build/nebbiedit/nebbiedit validate tests/fixtures
 ./build/nebbiedit/nebbiedit convert lib roundtrip tests/fixtures /tmp/nebbie-rt
 ```
 
-## Pubblicazione su GitHub
-
-Repository: **https://github.com/wizardmorgan/nebbie-editor**
-
-### Push dall'agent cloud (soluzione definitiva)
-
-1. Crea un **fine-grained PAT** su GitHub (Contents: Read/Write su `nebbie-editor`)
-2. Aggiungilo in **Cursor Dashboard → Cloud Agents → Secrets** come `WIZARDMORGAN_GITHUB_PAT`
-3. Riavvia l'agent, poi: `./scripts/git-push.sh`
-
-Guida completa: [docs/GIT-PUSH-DEFINITIVO.md](docs/GIT-PUSH-DEFINITIVO.md)
-
-### Push dal PC
-
-```bash
-git clone https://github.com/wizardmorgan/nebbie-editor.git
-cd nebbie-editor
-git push origin cursor/nebbie-editor-initial-c774
-```
-
 ## Dati di test
-
-Per testare contro un server reale puoi usare il fork:
 
 ```bash
 ./scripts/fetch-test-data.sh
@@ -106,6 +99,7 @@ Per testare contro un server reale puoi usare il fork:
 nebbie-core/   Libreria C++17 (parser + modello)
 nebbiedit/     CLI
 nebbie-qt/     GUI Qt (nebbieedit)
+scripts/       install-deps.sh, build.sh (Linux + macOS)
 tests/         Fixture e test automatici
 docs/          Documentazione tecnica
 ```
@@ -114,7 +108,7 @@ docs/          Documentazione tecnica
 
 - Server ufficiale: https://github.com/NebbieArcane/Server
 - Fork di test: https://github.com/wizardmorgan/nebbietest
-- Editor Diku legacy (non Nebbie): https://github.com/wizardmorgan/DikuEdit
+- Piattaforme: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Licenza
 

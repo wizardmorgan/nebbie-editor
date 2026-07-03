@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
 
     MainWindow window;
     if (argc >= 2) {
-        window.openLibPath(QString::fromLocal8Bit(argv[1]));
+        window.openLibPath(QString::fromUtf8(argv[1]));
     }
     window.show();
 

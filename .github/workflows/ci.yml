@@ -15,14 +15,49 @@ jobs:
       - name: Fetch nebbietest data
         run: ./scripts/fetch-test-data.sh
 
-      - name: Install Qt6
-        run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
+      - name: Install dependencies
+        run: ./scripts/install-deps.sh
 
-      - name: Configure
-        run: CXX=g++ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Configure and build
+        run: ./scripts/build.sh
 
-      - name: Build
-        run: cmake --build build --config Release
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: CLI smoke test
+        run: ./build/nebbiedit/nebbiedit info tests/fixtures
+
+      - name: Validate fixtures
+        run: ./build/nebbiedit/nebbiedit validate tests/fixtures
+
+      - name: MVP one-shot edit
+        run: |
+          rm -rf /tmp/nebbie-mvp-cli
+          cp -a tests/fixtures /tmp/nebbie-mvp-cli
+          ./build/nebbiedit/nebbiedit room set /tmp/nebbie-mvp-cli 3001 --name "Stanza MVP CLI"
+          ./build/nebbiedit/nebbiedit validate /tmp/nebbie-mvp-cli
+
+      - name: Nebbietest phase-4 roundtrip
+        run: ctest --test-dir build -R nebbietest-phase4 --output-on-failure
+
+      - name: Build Qt GUI
+        run: test -x build/nebbie-qt/nebbieedit
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch nebbietest data
+        run: ./scripts/fetch-test-data.sh
+
+      - name: Install dependencies
+        run: ./scripts/install-deps.sh
+
+      - name: Configure and build
+        run: |
+          export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+          ./scripts/build.sh
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
