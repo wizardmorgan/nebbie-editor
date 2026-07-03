@@ -11,22 +11,28 @@ Quando l'agent non riesce a pushare su GitHub, le modifiche restano **solo nel w
 
 ---
 
-## Metodo 1 — Archivio completo (più semplice)
+## Metodo 1 — Archivio zip (consigliato)
 
-1. **In questo agent** (quello con le modifiche): scarica l'**archivio del workspace**  
-   Cursor → sessione cloud → **Download** / esporta progetto (zip dell'intera cartella).
+**Cursor non ha un tasto "Download" per scaricare l'intero workspace.** Gli "Artifacts" nella pagina dell'agent sono soprattutto screenshot/video di demo, non un export del codice.
 
-2. Sul **PC**, estrai lo zip. Entra in `nebbie-editor/`.
+### Come ottenere lo zip
 
-3. Push dal PC (login browser o PAT GitHub):
+1. Chiedi all'agent: **"preparami lo zip"** → esegue `./scripts/create-export-zip.sh`
+2. Scarica il file con una di queste vie:
+   - **Desktop remoto** (consigliato): su [cursor.com/agents](https://cursor.com/agents) apri questa sessione → **Remote desktop** / controllo desktop → nel VM il file è in `/workspace/nebbie-editor-export.zip`
+   - **API Cursor** (se hai API key): endpoint artifacts dell'agent
+
+### Sul PC, dopo lo zip
 
 ```bash
+unzip nebbie-editor-export.zip
 cd nebbie-editor
+git log --oneline -6
 git remote set-url origin https://github.com/wizardmorgan/nebbie-editor.git
 git push -u origin cursor/nebbie-editor-initial-c774
 ```
 
-4. **Nuovo agent** con `WIZARDMORGAN_GITHUB_PAT` configurato: avvialo su `nebbie-editor` — clonerà da GitHub e avrà già tutto. Scrivi **push** solo se serve un commit nuovo.
+Il nuovo agent con `WIZARDMORGAN_GITHUB_PAT` può poi clonare da GitHub e avrà tutto.
 
 ---
 
