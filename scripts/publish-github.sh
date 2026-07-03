@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Crea il repository GitHub wizardmorgan/nebbie-editor e pubblica il branch corrente.
-# L'integrazione Cursor non ha permesso di creare repo nuovi via API: questo script
-# richiede che tu crei il repo vuoto una volta dal browser o con un PAT personale.
+# Pubblica il branch corrente su wizardmorgan/nebbie-editor.
+# NOTA: l'account cursor[bot] (agent cloud) spesso NON ha permesso di push
+# sui repo personali. In quel caso usa le istruzioni in docs/PUBBLICAZIONE.md.
 
 REPO="wizardmorgan/nebbie-editor"
 BRANCH="${1:-cursor/nebbie-editor-initial-c774}"
@@ -13,29 +13,65 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
-if gh repo view "$REPO" >/dev/null 2>&1; then
-  echo "Repository $REPO trovato."
-else
-  echo "Repository $REPO non esiste ancora."
-  echo
-  echo "Crealo manualmente:"
-  echo "  1. Apri https://github.com/new"
-  echo "  2. Owner: wizardmorgan"
-  echo "  3. Nome: nebbie-editor"
-  echo "  4. Public, senza README/.gitignore (repo vuoto)"
-  echo
-  echo "Oppure, con un PAT con scope repo:"
-  echo "  gh repo create $REPO --public --description \"Portable Nebbie Arcane world editor\""
-  echo
-  read -r -p "Premi Invio dopo aver creato il repo..."
+if ! gh repo view "$REPO" >/dev/null 2>&1; then
+  echo "Repository $REPO non trovato." >&2
+  echo "Crealo vuoto su https://github.com/new (owner: wizardmorgan, nome: nebbie-editor)." >&2
+  exit 1
 fi
+
+echo "Repository $REPO trovato."
 
 if ! git remote get-url origin >/dev/null 2>&1; then
   git remote add origin "https://github.com/$REPO.git"
 fi
 
-git push -u origin "$BRANCH"
+echo "Push di $BRANCH verso origin..."
+set +e
+PUSH_OUTPUT="$(git push -u origin "$BRANCH" 2>&1)"
+PUSH_STATUS=$?
+set -e
 
-echo
-echo "Pubblicato: https://github.com/$REPO/tree/$BRANCH"
-echo "Apri una PR verso main/master quando il branch di default è pronto."
+if [[ $PUSH_STATUS -eq 0 ]]; then
+  echo
+  echo "Pubblicato: https://github.com/$REPO/tree/$BRANCH"
+  exit 0
+fi
+
+echo "$PUSH_OUTPUT" >&2
+echo >&2
+
+if grep -qE '403|Permission.*denied|cursor\[bot\]' <<<"$PUSH_OUTPUT"; then
+  cat >&2 <<'EOF'
+════════════════════════════════════════════════════════════════════
+Push rifiutato: cursor[bot] non ha permesso di scrivere sul tuo repo.
+════════════════════════════════════════════════════════════════════
+
+Soluzione consigliata — push dal TUO computer con il TUO account GitHub:
+
+  1. Apri il progetto nebbie-editor in Cursor (desktop) oppure clona il bundle:
+       git clone nebbie-editor.bundle nebbie-editor -b cursor/nebbie-editor-initial-c774
+     (il bundle si genera con: git bundle create nebbie-editor.bundle --all)
+
+  2. Collega il remote (se manca):
+       git remote add origin https://github.com/wizardmorgan/nebbie-editor.git
+
+  3. Push con le tue credenziali GitHub (browser o PAT):
+       git push -u origin cursor/nebbie-editor-initial-c774
+
+  Con Personal Access Token (scope repo):
+       git push https://wizardmorgan:<TOKEN>@github.com/wizardmorgan/nebbie-editor.git cursor/nebbie-editor-initial-c774
+
+Soluzione alternativa — dare accesso all'app Cursor su GitHub:
+
+  1. https://github.com/settings/installations
+  2. Apri "Cursor" → Configure
+  3. Repository access: aggiungi "nebbie-editor" (o All repositories)
+  4. Verifica permesso "Contents" = Read and write
+  5. Rilancia questo script
+
+Guida completa: docs/PUBBLICAZIONE.md
+EOF
+  exit 1
+fi
+
+exit "$PUSH_STATUS"

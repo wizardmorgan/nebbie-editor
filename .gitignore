@@ -6,6 +6,7 @@ cmake-build-*/
 *.so
 *.dylib
 *.exe
+*.bundle
 .DS_Store
 .idea/
 .vscode/

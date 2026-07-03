@@ -41,13 +41,19 @@ ctest --test-dir build
 
 ## Pubblicazione su GitHub
 
-Repository previsto: **https://github.com/wizardmorgan/nebbie-editor**
+Repository: **https://github.com/wizardmorgan/nebbie-editor**
 
-L'agente cloud non può creare repository nuovi sul tuo account GitHub. Dopo aver creato un repo vuoto `wizardmorgan/nebbie-editor`:
+> **403 con `cursor[bot]`?** L'agent cloud non può pushare sul tuo account senza permessi di scrittura.  
+> Pusha dal tuo PC con il tuo login GitHub, oppure configura l'app Cursor.  
+> Guida: [docs/PUBBLICAZIONE.md](docs/PUBBLICAZIONE.md)
 
 ```bash
-./scripts/publish-github.sh
+# Dal tuo computer:
+git remote set-url origin https://github.com/wizardmorgan/nebbie-editor.git
+git push -u origin cursor/nebbie-editor-initial-c774
 ```
+
+## Dati di test
 
 Per testare contro un server reale puoi usare il fork:
 
