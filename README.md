@@ -56,6 +56,7 @@ CXX=g++ cmake -S . -B build && cmake --build build
 ```
 
 Funzioni MVP: apri libreria, elenco stanze/mob/oggetti, modifica campi base, valida, salva.
+Creazione nuove entità, ricerca per vnum/nome, mappatura uscite tra stanze (tab Stanze).
 
 ## Uso CLI (generale)
 

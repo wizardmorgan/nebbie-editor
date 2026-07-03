@@ -6,10 +6,12 @@
 
 #include <QAction>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -17,6 +19,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QSplitter>
 #include <QStatusBar>
@@ -29,20 +32,40 @@
 
 namespace {
 
-QWidget* makeEditorPage(QListWidget*& list_out, QWidget* editor) {
+struct EntityPageWidgets {
+    QWidget* page = nullptr;
+    QLineEdit* search = nullptr;
+    QPushButton* create_button = nullptr;
+    QListWidget* list = nullptr;
+};
+
+EntityPageWidgets makeEntityPage(QWidget* editor, const QString& create_label) {
+    EntityPageWidgets widgets;
+    widgets.page = new QWidget;
+    auto* layout = new QVBoxLayout(widgets.page);
+
+    auto* top = new QHBoxLayout;
+    widgets.search = new QLineEdit;
+    widgets.search->setPlaceholderText("Cerca vnum o nome...");
+    widgets.create_button = new QPushButton(create_label);
+    top->addWidget(widgets.search, 1);
+    top->addWidget(widgets.create_button);
+    layout->addLayout(top);
+
     auto* splitter = new QSplitter;
-    list_out = new QListWidget;
-    list_out->setMinimumWidth(180);
-    splitter->addWidget(list_out);
+    widgets.list = new QListWidget;
+    widgets.list->setMinimumWidth(180);
+    splitter->addWidget(widgets.list);
     splitter->addWidget(editor);
     splitter->setStretchFactor(0, 1);
     splitter->setStretchFactor(1, 3);
+    layout->addWidget(splitter, 1);
+    return widgets;
+}
 
-    auto* page = new QWidget;
-    auto* layout = new QVBoxLayout(page);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(splitter);
-    return page;
+void addListItem(QListWidget* list, long vnum, const QString& label) {
+    list->addItem(label);
+    list->item(list->count() - 1)->setData(Qt::UserRole, static_cast<qlonglong>(vnum));
 }
 
 } // namespace
@@ -51,7 +74,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setupUi();
     setupMenus();
     setWindowTitle("Nebbie Editor");
-    resize(960, 640);
+    resize(1100, 720);
     setStatus("Apri una libreria (mudroot/lib) per iniziare.");
 }
 
@@ -65,11 +88,15 @@ void MainWindow::setupUi() {
 
     tabs_ = new QTabWidget;
 
+    auto* room_scroll = new QScrollArea;
+    room_scroll->setWidgetResizable(true);
     auto* room_editor = new QWidget;
-    auto* room_form = new QFormLayout(room_editor);
+    auto* room_layout = new QVBoxLayout(room_editor);
+
+    auto* room_form = new QFormLayout;
     room_name_ = new QLineEdit;
     room_desc_ = new QTextEdit;
-    room_desc_->setMinimumHeight(120);
+    room_desc_->setMinimumHeight(100);
     room_sector_ = new QSpinBox;
     room_sector_->setRange(0, 999);
     room_flags_ = new QSpinBox;
@@ -78,9 +105,52 @@ void MainWindow::setupUi() {
     room_form->addRow("Descrizione:", room_desc_);
     room_form->addRow("Settore:", room_sector_);
     room_form->addRow("Flag:", room_flags_);
-    auto* room_apply = new QPushButton("Applica modifiche");
+    auto* room_apply = new QPushButton("Applica modifiche stanza");
     room_form->addRow(room_apply);
-    tabs_->addTab(makeEditorPage(room_list_, room_editor), "Stanze");
+    room_layout->addLayout(room_form);
+
+    auto* exit_group = new QGroupBox("Uscite (mappatura)");
+    auto* exit_layout = new QVBoxLayout(exit_group);
+    exit_list_ = new QListWidget;
+    exit_list_->setMaximumHeight(120);
+    exit_layout->addWidget(exit_list_);
+
+    auto* exit_form = new QFormLayout;
+    exit_direction_ = new QComboBox;
+    for (int i = 0; i < nebbie::EXIT_DIR_COUNT; ++i) {
+        exit_direction_->addItem(QString::fromUtf8(nebbie::exit_direction_name(i)), i);
+    }
+    exit_to_room_ = new QSpinBox;
+    exit_to_room_->setRange(0, 999999);
+    exit_description_ = new QLineEdit;
+    exit_keyword_ = new QLineEdit;
+    exit_info_ = new QSpinBox;
+    exit_info_->setRange(0, 2147483647);
+    exit_key_ = new QSpinBox;
+    exit_key_->setRange(-1, 999999);
+    exit_form->addRow("Direzione:", exit_direction_);
+    exit_form->addRow("Verso stanza #:", exit_to_room_);
+    exit_form->addRow("Descrizione:", exit_description_);
+    exit_form->addRow("Parola chiave:", exit_keyword_);
+    exit_form->addRow("Flag uscita:", exit_info_);
+    exit_form->addRow("Chiave (vnum):", exit_key_);
+    exit_layout->addLayout(exit_form);
+
+    auto* exit_buttons = new QHBoxLayout;
+    auto* exit_apply = new QPushButton("Aggiungi / aggiorna uscita");
+    auto* exit_remove = new QPushButton("Elimina uscita");
+    auto* exit_goto = new QPushButton("Vai alla stanza");
+    exit_buttons->addWidget(exit_apply);
+    exit_buttons->addWidget(exit_remove);
+    exit_buttons->addWidget(exit_goto);
+    exit_layout->addLayout(exit_buttons);
+    room_layout->addWidget(exit_group);
+    room_scroll->setWidget(room_editor);
+
+    const EntityPageWidgets room_page = makeEntityPage(room_scroll, "Nuova stanza");
+    room_search_ = room_page.search;
+    room_list_ = room_page.list;
+    tabs_->addTab(room_page.page, "Stanze");
 
     auto* mob_editor = new QWidget;
     auto* mob_form = new QFormLayout(mob_editor);
@@ -97,7 +167,10 @@ void MainWindow::setupUi() {
     mob_form->addRow("Allineamento:", mob_alignment_);
     auto* mob_apply = new QPushButton("Applica modifiche");
     mob_form->addRow(mob_apply);
-    tabs_->addTab(makeEditorPage(mob_list_, mob_editor), "Mob");
+    const EntityPageWidgets mob_page = makeEntityPage(mob_editor, "Nuovo mob");
+    mob_search_ = mob_page.search;
+    mob_list_ = mob_page.list;
+    tabs_->addTab(mob_page.page, "Mob");
 
     auto* obj_editor = new QWidget;
     auto* obj_form = new QFormLayout(obj_editor);
@@ -114,7 +187,10 @@ void MainWindow::setupUi() {
     obj_form->addRow("Peso:", obj_weight_);
     auto* obj_apply = new QPushButton("Applica modifiche");
     obj_form->addRow(obj_apply);
-    tabs_->addTab(makeEditorPage(obj_list_, obj_editor), "Oggetti");
+    const EntityPageWidgets obj_page = makeEntityPage(obj_editor, "Nuovo oggetto");
+    obj_search_ = obj_page.search;
+    obj_list_ = obj_page.list;
+    tabs_->addTab(obj_page.page, "Oggetti");
 
     validation_log_ = new QPlainTextEdit;
     validation_log_->setReadOnly(true);
@@ -135,6 +211,19 @@ void MainWindow::setupUi() {
     connect(room_apply, &QPushButton::clicked, this, &MainWindow::applyRoomChanges);
     connect(mob_apply, &QPushButton::clicked, this, &MainWindow::applyMobChanges);
     connect(obj_apply, &QPushButton::clicked, this, &MainWindow::applyObjChanges);
+    connect(room_page.create_button, &QPushButton::clicked, this, &MainWindow::createRoom);
+    connect(mob_page.create_button, &QPushButton::clicked, this, &MainWindow::createMob);
+    connect(obj_page.create_button, &QPushButton::clicked, this, &MainWindow::createObject);
+    connect(room_search_, &QLineEdit::textChanged, this, &MainWindow::onRoomSearchChanged);
+    connect(mob_search_, &QLineEdit::textChanged, this, &MainWindow::onMobSearchChanged);
+    connect(obj_search_, &QLineEdit::textChanged, this, &MainWindow::onObjSearchChanged);
+    connect(exit_list_, &QListWidget::currentRowChanged, this, [this](int) { onExitSelected(); });
+    connect(exit_apply, &QPushButton::clicked, this, &MainWindow::applyExitChanges);
+    connect(exit_remove, &QPushButton::clicked, this, &MainWindow::removeSelectedExit);
+    connect(exit_goto, &QPushButton::clicked, this, &MainWindow::goToExitTarget);
+    connect(exit_list_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) {
+        goToExitTarget();
+    });
 }
 
 void MainWindow::setupMenus() {
@@ -190,8 +279,16 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     context_ = {};
     nebbie::load_lib(world_, path, context_);
     lib_path_ = path;
+    room_filter_.clear();
+    mob_filter_.clear();
+    object_filter_.clear();
+    room_search_->clear();
+    mob_search_->clear();
+    obj_search_->clear();
     markClean();
-    refreshLists();
+    refreshRoomList();
+    refreshMobList();
+    refreshObjectList();
 
     const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
                               .arg(QString::fromStdString(path.string()))
@@ -203,32 +300,126 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     setStatus("Libreria caricata.");
 }
 
-void MainWindow::refreshLists() {
+void MainWindow::refreshRoomList() {
+    const long selected = currentRoomVnum();
     room_list_->clear();
+    const std::string query = room_filter_.toStdString();
     for (const auto& [vnum, room] : world_.rooms) {
-        room_list_->addItem(QString("#%1 %2").arg(vnum).arg(QString::fromStdString(room.name)));
-        room_list_->item(room_list_->count() - 1)->setData(Qt::UserRole, static_cast<qlonglong>(vnum));
+        if (!nebbie::entity_matches(vnum, room.name, query)) {
+            continue;
+        }
+        addListItem(room_list_, vnum,
+                    QString("#%1 %2").arg(vnum).arg(QString::fromStdString(room.name)));
     }
-
-    mob_list_->clear();
-    for (const auto& [vnum, mob] : world_.mobiles) {
-        mob_list_->addItem(QString("#%1 %2").arg(vnum).arg(QString::fromStdString(mob.short_descr)));
-        mob_list_->item(mob_list_->count() - 1)->setData(Qt::UserRole, static_cast<qlonglong>(vnum));
-    }
-
-    obj_list_->clear();
-    for (const auto& [vnum, obj] : world_.objects) {
-        obj_list_->addItem(QString("#%1 %2").arg(vnum).arg(QString::fromStdString(obj.short_descr)));
-        obj_list_->item(obj_list_->count() - 1)->setData(Qt::UserRole, static_cast<qlonglong>(vnum));
+    if (selected > 0) {
+        selectRoomByVnum(selected);
     }
 }
 
-void MainWindow::onRoomSelected() {
-    const auto* item = room_list_->currentItem();
-    if (!item) {
+void MainWindow::refreshMobList() {
+    mob_list_->clear();
+    const std::string query = mob_filter_.toStdString();
+    for (const auto& [vnum, mob] : world_.mobiles) {
+        if (!nebbie::entity_matches(vnum, mob.short_descr, query)) {
+            continue;
+        }
+        addListItem(mob_list_, vnum,
+                    QString("#%1 %2").arg(vnum).arg(QString::fromStdString(mob.short_descr)));
+    }
+}
+
+void MainWindow::refreshObjectList() {
+    obj_list_->clear();
+    const std::string query = object_filter_.toStdString();
+    for (const auto& [vnum, obj] : world_.objects) {
+        if (!nebbie::entity_matches(vnum, obj.short_descr, query)) {
+            continue;
+        }
+        addListItem(obj_list_, vnum,
+                    QString("#%1 %2").arg(vnum).arg(QString::fromStdString(obj.short_descr)));
+    }
+}
+
+void MainWindow::refreshExitList(const long room_vnum) {
+    exit_list_->clear();
+    const nebbie::Room* room = world_.find_room(room_vnum);
+    if (!room) {
         return;
     }
-    const long vnum = static_cast<long>(item->data(Qt::UserRole).toLongLong());
+
+    for (const auto& exit : room->exits) {
+        QString target_name;
+        if (const nebbie::Room* target = world_.find_room(exit.to_room)) {
+            target_name = QString::fromStdString(target->name);
+        } else {
+            target_name = "(mancante)";
+        }
+        const QString label = QString("%1 → #%2 %3")
+                                  .arg(QString::fromUtf8(nebbie::exit_direction_name(exit.direction)))
+                                  .arg(exit.to_room)
+                                  .arg(target_name);
+        addListItem(exit_list_, exit.direction, label);
+    }
+}
+
+long MainWindow::currentRoomVnum() const {
+    const auto* item = room_list_->currentItem();
+    if (!item) {
+        return 0;
+    }
+    return static_cast<long>(item->data(Qt::UserRole).toLongLong());
+}
+
+void MainWindow::selectRoomByVnum(const long vnum) {
+    for (int i = 0; i < room_list_->count(); ++i) {
+        if (room_list_->item(i)->data(Qt::UserRole).toLongLong() == vnum) {
+            room_list_->setCurrentRow(i);
+            tabs_->setCurrentIndex(0);
+            return;
+        }
+    }
+}
+
+void MainWindow::selectMobByVnum(const long vnum) {
+    for (int i = 0; i < mob_list_->count(); ++i) {
+        if (mob_list_->item(i)->data(Qt::UserRole).toLongLong() == vnum) {
+            mob_list_->setCurrentRow(i);
+            tabs_->setCurrentIndex(1);
+            return;
+        }
+    }
+}
+
+void MainWindow::selectObjectByVnum(const long vnum) {
+    for (int i = 0; i < obj_list_->count(); ++i) {
+        if (obj_list_->item(i)->data(Qt::UserRole).toLongLong() == vnum) {
+            obj_list_->setCurrentRow(i);
+            tabs_->setCurrentIndex(2);
+            return;
+        }
+    }
+}
+
+void MainWindow::onRoomSearchChanged(const QString& text) {
+    room_filter_ = text.trimmed();
+    refreshRoomList();
+}
+
+void MainWindow::onMobSearchChanged(const QString& text) {
+    mob_filter_ = text.trimmed();
+    refreshMobList();
+}
+
+void MainWindow::onObjSearchChanged(const QString& text) {
+    object_filter_ = text.trimmed();
+    refreshObjectList();
+}
+
+void MainWindow::onRoomSelected() {
+    const long vnum = currentRoomVnum();
+    if (vnum <= 0) {
+        return;
+    }
     const nebbie::Room* room = world_.find_room(vnum);
     if (!room) {
         return;
@@ -237,6 +428,7 @@ void MainWindow::onRoomSelected() {
     room_desc_->setPlainText(QString::fromStdString(room->description));
     room_sector_->setValue(static_cast<int>(room->sector_type));
     room_flags_->setValue(static_cast<int>(room->room_flags));
+    refreshExitList(vnum);
 }
 
 void MainWindow::onMobSelected() {
@@ -269,6 +461,30 @@ void MainWindow::onObjSelected() {
     obj_desc_->setPlainText(QString::fromStdString(obj->description));
     obj_cost_->setValue(obj->cost);
     obj_weight_->setValue(obj->weight);
+}
+
+void MainWindow::onExitSelected() {
+    const long room_vnum = currentRoomVnum();
+    const auto* item = exit_list_->currentItem();
+    if (!room_vnum || !item) {
+        return;
+    }
+    const int direction = static_cast<int>(item->data(Qt::UserRole).toLongLong());
+    const nebbie::Room* room = world_.find_room(room_vnum);
+    if (!room) {
+        return;
+    }
+    const nebbie::Exit* exit = nebbie::find_room_exit(*room, direction);
+    if (!exit) {
+        return;
+    }
+
+    exit_direction_->setCurrentIndex(direction);
+    exit_to_room_->setValue(static_cast<int>(exit->to_room));
+    exit_description_->setText(QString::fromStdString(exit->description));
+    exit_keyword_->setText(QString::fromStdString(exit->keyword));
+    exit_info_->setValue(static_cast<int>(exit->exit_info));
+    exit_key_->setValue(static_cast<int>(exit->key));
 }
 
 void MainWindow::applyRoomChanges() {
@@ -341,6 +557,145 @@ void MainWindow::applyObjChanges() {
     item->setText(QString("#%1 %2").arg(vnum).arg(obj_short_->text()));
     markDirty();
     setStatus(QString("Oggetto %1 aggiornato in memoria.").arg(vnum));
+}
+
+void MainWindow::applyExitChanges() {
+    const long room_vnum = currentRoomVnum();
+    if (room_vnum <= 0) {
+        QMessageBox::information(this, "Uscite", "Seleziona una stanza.");
+        return;
+    }
+
+    nebbie::ExitEdit edit;
+    edit.direction = exit_direction_->currentData().toInt();
+    edit.to_room = exit_to_room_->value();
+    edit.description = exit_description_->text().toStdString();
+    edit.keyword = exit_keyword_->text().toStdString();
+    edit.exit_info = exit_info_->value();
+    edit.key = exit_key_->value();
+    edit.open_cmd = -1;
+
+    if (!nebbie::set_room_exit(world_, room_vnum, edit)) {
+        QMessageBox::warning(this, "Uscite", "Impossibile aggiornare l'uscita.");
+        return;
+    }
+
+    refreshExitList(room_vnum);
+    markDirty();
+    setStatus(QString("Uscita %1 aggiornata per stanza %2.")
+                  .arg(QString::fromUtf8(nebbie::exit_direction_name(edit.direction)))
+                  .arg(room_vnum));
+}
+
+void MainWindow::removeSelectedExit() {
+    const long room_vnum = currentRoomVnum();
+    const auto* item = exit_list_->currentItem();
+    if (room_vnum <= 0 || !item) {
+        QMessageBox::information(this, "Uscite", "Seleziona un'uscita da eliminare.");
+        return;
+    }
+    const int direction = static_cast<int>(item->data(Qt::UserRole).toLongLong());
+    if (!nebbie::remove_room_exit(world_, room_vnum, direction)) {
+        QMessageBox::warning(this, "Uscite", "Uscita non trovata.");
+        return;
+    }
+    refreshExitList(room_vnum);
+    markDirty();
+    setStatus(QString("Uscita %1 rimossa.").arg(QString::fromUtf8(nebbie::exit_direction_name(direction))));
+}
+
+void MainWindow::goToExitTarget() {
+    const auto* item = exit_list_->currentItem();
+    if (!item) {
+        return;
+    }
+    const int direction = static_cast<int>(item->data(Qt::UserRole).toLongLong());
+    const nebbie::Room* room = world_.find_room(currentRoomVnum());
+    if (!room) {
+        return;
+    }
+    const nebbie::Exit* exit = nebbie::find_room_exit(*room, direction);
+    if (!exit || exit->to_room <= 0) {
+        return;
+    }
+    if (!world_.find_room(exit->to_room)) {
+        QMessageBox::information(this, "Uscite",
+                                 QString("La stanza #%1 non esiste in questa libreria.").arg(exit->to_room));
+        return;
+    }
+    selectRoomByVnum(exit->to_room);
+}
+
+void MainWindow::createRoom() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Stanze", "Apri prima una libreria.");
+        return;
+    }
+
+    bool ok = false;
+    const int suggested = static_cast<int>(nebbie::suggest_next_room_vnum(world_));
+    const int vnum = QInputDialog::getInt(this, "Nuova stanza", "Vnum stanza:", suggested, 1, 999999, 1, &ok);
+    if (!ok) {
+        return;
+    }
+
+    if (!nebbie::create_room(world_, vnum)) {
+        QMessageBox::warning(this, "Stanze", QString("Impossibile creare la stanza #%1 (vnum duplicato?).").arg(vnum));
+        return;
+    }
+
+    refreshRoomList();
+    selectRoomByVnum(vnum);
+    markDirty();
+    setStatus(QString("Creata stanza #%1.").arg(vnum));
+}
+
+void MainWindow::createMob() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Mob", "Apri prima una libreria.");
+        return;
+    }
+
+    bool ok = false;
+    const int suggested = static_cast<int>(nebbie::suggest_next_mob_vnum(world_));
+    const int vnum = QInputDialog::getInt(this, "Nuovo mob", "Vnum mobile:", suggested, 1, 99999, 1, &ok);
+    if (!ok) {
+        return;
+    }
+
+    if (!nebbie::create_mob(world_, vnum)) {
+        QMessageBox::warning(this, "Mob", QString("Impossibile creare il mob #%1 (vnum duplicato?).").arg(vnum));
+        return;
+    }
+
+    refreshMobList();
+    selectMobByVnum(vnum);
+    markDirty();
+    setStatus(QString("Creato mob #%1.").arg(vnum));
+}
+
+void MainWindow::createObject() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Oggetti", "Apri prima una libreria.");
+        return;
+    }
+
+    bool ok = false;
+    const int suggested = static_cast<int>(nebbie::suggest_next_object_vnum(world_));
+    const int vnum = QInputDialog::getInt(this, "Nuovo oggetto", "Vnum oggetto:", suggested, 1, 99999, 1, &ok);
+    if (!ok) {
+        return;
+    }
+
+    if (!nebbie::create_object(world_, vnum)) {
+        QMessageBox::warning(this, "Oggetti", QString("Impossibile creare l'oggetto #%1 (vnum duplicato?).").arg(vnum));
+        return;
+    }
+
+    refreshObjectList();
+    selectObjectByVnum(vnum);
+    markDirty();
+    setStatus(QString("Creato oggetto #%1.").arg(vnum));
 }
 
 void MainWindow::showValidation(const nebbie::ValidationReport& report) {
