@@ -43,14 +43,20 @@ ctest --test-dir build
 
 Repository: **https://github.com/wizardmorgan/nebbie-editor**
 
-> **403 con `cursor[bot]` anche se l'app Cursor è in Read/Write?**  
-> Il token runtime dell'agent spesso non include repo nuovi come `nebbie-editor`,  
-> anche se l'app GitHub è configurata correttamente. Vedi [docs/PUBBLICAZIONE.md](docs/PUBBLICAZIONE.md).
+### Push dall'agent cloud (soluzione definitiva)
+
+1. Crea un **fine-grained PAT** su GitHub (Contents: Read/Write su `nebbie-editor`)
+2. Aggiungilo in **Cursor Dashboard → Cloud Agents → Secrets** come `WIZARDMORGAN_GITHUB_PAT`
+3. Riavvia l'agent, poi: `./scripts/git-push.sh`
+
+Guida completa: [docs/GIT-PUSH-DEFINITIVO.md](docs/GIT-PUSH-DEFINITIVO.md)
+
+### Push dal PC
 
 ```bash
-# Dal tuo computer:
-git remote set-url origin https://github.com/wizardmorgan/nebbie-editor.git
-git push -u origin cursor/nebbie-editor-initial-c774
+git clone https://github.com/wizardmorgan/nebbie-editor.git
+cd nebbie-editor
+git push origin cursor/nebbie-editor-initial-c774
 ```
 
 ## Dati di test
