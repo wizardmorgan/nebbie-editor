@@ -20,4 +20,15 @@ Vestito di nero, quasi invisibile nell'ombra, sprigiona un'aura di pura malvagit
 50 -8 -10 300 3d6+15
 -1 0 8 29
 8 8 4 64 256|512|2048|8192 0
+#2111
+druid guildmaster~
+The druid~
+The druid stands here.
+~
+You see nothing special.
+~
+1|2097152 0 1000 A 1
+11 15=5 0 8 2d6+4
+-1 0 8 1
+8 8 0
 %%

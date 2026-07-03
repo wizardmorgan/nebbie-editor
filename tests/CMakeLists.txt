@@ -34,9 +34,18 @@ add_test(NAME zone-reset-workflow
 add_executable(nebbie-nebbietest-mob-tests test_nebbietest_mob.cpp)
 target_link_libraries(nebbie-nebbietest-mob-tests PRIVATE nebbie-core)
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/myst.mob")
-    add_test(NAME nebbietest-mob-load COMMAND nebbie-nebbietest-mob-tests
-             ${CMAKE_SOURCE_DIR}/vendor/nebbietest/myst.mob)
+if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.mob")
+    set(NEBBIETEST_MOB "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.mob")
+elseif(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/myst.mob")
+    set(NEBBIETEST_MOB "${CMAKE_SOURCE_DIR}/vendor/nebbietest/myst.mob")
+endif()
+if(NEBBIETEST_MOB)
+    add_test(NAME nebbietest-mob-load COMMAND nebbie-nebbietest-mob-tests ${NEBBIETEST_MOB})
+endif()
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.mob")
+    add_test(NAME nebbietest-lib-load COMMAND nebbie-nebbietest-mob-tests
+             --lib ${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib)
 endif()
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.act")

@@ -2,8 +2,11 @@
 
 #include "nebbie/fread.hpp"
 
+#include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <sstream>
+#include <vector>
 
 namespace nebbie {
 
@@ -45,49 +48,77 @@ std::string mob_context(const Mobile& mob) {
     return ctx;
 }
 
-void read_new_mob_stats(FILE* fp, Mobile& mob) {
-    std::string combat_line = fread_line(fp);
-    while (!combat_line.empty() && (combat_line.back() == '\r' || combat_line.back() == ' ' || combat_line.back() == '\t')) {
-        combat_line.pop_back();
+std::string trim_combat_line(std::string line) {
+    while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) {
+        line.pop_back();
     }
     std::size_t start = 0;
-    while (start < combat_line.size() && (combat_line[start] == ' ' || combat_line[start] == '\t')) {
+    while (start < line.size() && (line[start] == ' ' || line[start] == '\t')) {
         ++start;
     }
     if (start > 0) {
-        combat_line.erase(0, start);
+        line.erase(0, start);
+    }
+    return line;
+}
+
+std::vector<std::string> split_combat_tokens(const std::string& line) {
+    std::vector<std::string> tokens;
+    std::istringstream iss(line);
+    std::string token;
+    while (iss >> token) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+int parse_combat_int(const std::string& token) {
+    if (token.empty()) {
+        throw ParseError("empty combat number");
     }
 
-    int level = 0;
-    int hitroll = 0;
-    int ac = 0;
-    char tail[256] = {};
-    const int header = std::sscanf(combat_line.c_str(), "%d %d %d %255[^\n]", &level, &hitroll, &ac, tail);
-    if (header < 4) {
-        throw ParseError(mob_context(mob) + ": invalid combat line (expected level hitroll ac ...): \"" + combat_line + "\"");
+    std::size_t index = 0;
+    if (token[index] == '+' || token[index] == '-') {
+        ++index;
+    }
+    if (index >= token.size() || !std::isdigit(static_cast<unsigned char>(token[index]))) {
+        throw ParseError("invalid combat number token: \"" + token + "\"");
+    }
+    while (index < token.size() && std::isdigit(static_cast<unsigned char>(token[index]))) {
+        ++index;
+    }
+    return std::stoi(token.substr(0, index));
+}
+
+void parse_combat_line(const std::string& combat_line, Mobile& mob) {
+    const auto tokens = split_combat_tokens(combat_line);
+    if (tokens.size() < 5) {
+        throw ParseError(mob_context(mob) + ": invalid combat line (expected 5 fields): \"" + combat_line + "\"");
     }
 
-    mob.level = level;
-    mob.hitroll = hitroll;
-    mob.ac = ac;
+    mob.level = parse_combat_int(tokens[0]);
+    mob.hitroll = parse_combat_int(tokens[1]);
+    mob.ac = parse_combat_int(tokens[2]);
 
     if (mob_uses_hit_dice(mob.mobtype)) {
-        char hit_buf[128] = {};
-        char dam_buf[128] = {};
-        if (std::sscanf(tail, "%127s %127s", hit_buf, dam_buf) < 2) {
-            throw ParseError(mob_context(mob) + ": invalid type S combat line (expected hit_dice dam_dice): \"" + combat_line + "\"");
-        }
-        mob.hit_dice = hit_buf;
-        mob.dam_dice = dam_buf;
+        mob.hit_dice = tokens[3];
+        mob.dam_dice = tokens[4];
         mob.hit_bonus = 0;
     } else {
-        char dam_buf[128] = {};
-        if (std::sscanf(tail, "%d %127s", &mob.hit_bonus, dam_buf) < 2) {
-            throw ParseError(mob_context(mob) + ": invalid type " + mob.mobtype
-                             + " combat line (expected hp_bonus dam_dice): \"" + combat_line + "\"");
-        }
+        mob.hit_bonus = parse_combat_int(tokens[3]);
         mob.hit_dice.clear();
-        mob.dam_dice = dam_buf;
+        mob.dam_dice = tokens[4];
+    }
+}
+
+void read_new_mob_stats(FILE* fp, Mobile& mob) {
+    const std::string combat_line = trim_combat_line(fread_line(fp));
+    try {
+        parse_combat_line(combat_line, mob);
+    } catch (const ParseError&) {
+        throw;
+    } catch (const std::exception&) {
+        throw ParseError(mob_context(mob) + ": invalid combat line: \"" + combat_line + "\"");
     }
 
     const auto gold_line = parse_numbers(fread_line(fp));

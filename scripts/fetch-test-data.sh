@@ -12,3 +12,11 @@ else
 fi
 
 echo "Test data ready at $TARGET/mudroot/lib"
+
+LIB="$TARGET/mudroot/lib"
+for file in myst.zon myst.wld myst.mob myst.obj myst.shp myst.spe; do
+  if [[ -f "$TARGET/$file" && ! -f "$LIB/$file" ]]; then
+    cp "$TARGET/$file" "$LIB/$file"
+    echo "Installed $file -> mudroot/lib/"
+  fi
+done
