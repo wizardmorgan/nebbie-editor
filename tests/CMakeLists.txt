@@ -31,6 +31,14 @@ add_test(NAME zone-reset-workflow
          COMMAND nebbie-reset-tests ${CMAKE_SOURCE_DIR}/tests/fixtures
                                     ${CMAKE_BINARY_DIR}/reset-work-lib)
 
+add_executable(nebbie-nebbietest-mob-tests test_nebbietest_mob.cpp)
+target_link_libraries(nebbie-nebbietest-mob-tests PRIVATE nebbie-core)
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/myst.mob")
+    add_test(NAME nebbietest-mob-load COMMAND nebbie-nebbietest-mob-tests
+             ${CMAKE_SOURCE_DIR}/vendor/nebbietest/myst.mob)
+endif()
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib/myst.act")
     add_test(NAME nebbietest-phase4 COMMAND nebbie-phase4-tests
              ${CMAKE_SOURCE_DIR}/vendor/nebbietest/mudroot/lib)

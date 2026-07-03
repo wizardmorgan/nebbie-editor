@@ -33,17 +33,42 @@ bool is_new_mob_type(char letter) {
     return letter == 'S' || letter == 'A' || letter == 'N' || letter == 'B' || letter == 'L';
 }
 
+bool mob_uses_hit_dice(char mobtype) {
+    return mobtype == 'S';
+}
+
 void read_new_mob_stats(FILE* fp, Mobile& mob) {
     const auto combat_line = fread_line(fp);
-    char hit_buf[128] = {};
-    char dam_buf[128] = {};
-    const int parsed = std::sscanf(combat_line.c_str(), "%d %d %d %127s %127s",
-                                   &mob.level, &mob.hitroll, &mob.ac, hit_buf, dam_buf);
-    if (parsed < 5) {
+    int level = 0;
+    int hitroll = 0;
+    int ac = 0;
+    char tail[256] = {};
+    const int header = std::sscanf(combat_line.c_str(), "%d %d %d %255[^\n]", &level, &hitroll, &ac, tail);
+    if (header < 4) {
         throw ParseError("Invalid mob combat line");
     }
-    mob.hit_dice = hit_buf;
-    mob.dam_dice = dam_buf;
+
+    mob.level = level;
+    mob.hitroll = hitroll;
+    mob.ac = ac;
+
+    if (mob_uses_hit_dice(mob.mobtype)) {
+        char hit_buf[128] = {};
+        char dam_buf[128] = {};
+        if (std::sscanf(tail, "%127s %127s", hit_buf, dam_buf) < 2) {
+            throw ParseError("Invalid mob combat line for type S");
+        }
+        mob.hit_dice = hit_buf;
+        mob.dam_dice = dam_buf;
+        mob.hit_bonus = 0;
+    } else {
+        char dam_buf[128] = {};
+        if (std::sscanf(tail, "%d %127s", &mob.hit_bonus, dam_buf) < 2) {
+            throw ParseError("Invalid mob combat line for advanced mob type");
+        }
+        mob.hit_dice.clear();
+        mob.dam_dice = dam_buf;
+    }
 
     const auto gold_line = parse_numbers(fread_line(fp));
     if (gold_line.empty()) {
@@ -120,9 +145,15 @@ void fwrite_string(FILE* fp, const std::string& value) {
 }
 
 void write_new_mob_stats(FILE* fp, const Mobile& mob) {
-    std::fprintf(fp, "%d %d %d %s %s\n",
-                 mob.level, mob.hitroll, mob.ac,
-                 mob.hit_dice.c_str(), mob.dam_dice.c_str());
+    if (mob_uses_hit_dice(mob.mobtype)) {
+        std::fprintf(fp, "%d %d %d %s %s\n",
+                     mob.level, mob.hitroll, mob.ac,
+                     mob.hit_dice.c_str(), mob.dam_dice.c_str());
+    } else {
+        std::fprintf(fp, "%d %d %d %d %s\n",
+                     mob.level, mob.hitroll, mob.ac,
+                     mob.hit_bonus, mob.dam_dice.c_str());
+    }
 
     if (mob.extended_gold) {
         if (mob.race != 0 || mob.exp != 0) {

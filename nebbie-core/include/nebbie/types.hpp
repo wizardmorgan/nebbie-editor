@@ -80,6 +80,7 @@ struct Mobile {
     int level = 0;
     int hitroll = 0;
     int ac = 0;
+    int hit_bonus = 0;
     std::string hit_dice;
     std::string dam_dice;
     bool extended_gold = false;
