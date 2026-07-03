@@ -4,9 +4,21 @@ set -euo pipefail
 BRANCH="${1:-$(git branch --show-current)}"
 REMOTE="${2:-origin}"
 
-if [[ -n "${WIZARDMORGAN_GITHUB_PAT:-}" ]]; then
-  bash "$(dirname "$0")/../.cursor/setup-git-auth.sh"
+if [[ -z "${WIZARDMORGAN_GITHUB_PAT:-}" ]]; then
+  cat >&2 <<'EOF'
+WIZARDMORGAN_GITHUB_PAT non è caricato in questo agent.
+
+Secrets attualmente visibili: vedi CLOUD_AGENT_INJECTED_SECRET_NAMES nell'ambiente.
+Devi aggiungere il secret in Cursor Dashboard → Cloud Agents → Secrets
+con nome esatto: WIZARDMORGAN_GITHUB_PAT
+Poi avvia un NUOVO agent su nebbie-editor.
+
+EOF
+  echo "Secrets iniettati: ${CLOUD_AGENT_INJECTED_SECRET_NAMES:-(nessuno)}"
+  exit 1
 fi
+
+bash "$(dirname "$0")/../.cursor/setup-git-auth.sh"
 
 echo "Push di $BRANCH verso $REMOTE..."
 if git push -u "$REMOTE" "$BRANCH"; then
