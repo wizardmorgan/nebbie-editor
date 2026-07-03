@@ -37,15 +37,34 @@ bool mob_uses_hit_dice(char mobtype) {
     return mobtype == 'S';
 }
 
+std::string mob_context(const Mobile& mob) {
+    std::string ctx = "mob #" + std::to_string(mob.vnum);
+    if (!mob.short_descr.empty()) {
+        ctx += " (" + mob.short_descr + ")";
+    }
+    return ctx;
+}
+
 void read_new_mob_stats(FILE* fp, Mobile& mob) {
-    const auto combat_line = fread_line(fp);
+    std::string combat_line = fread_line(fp);
+    while (!combat_line.empty() && (combat_line.back() == '\r' || combat_line.back() == ' ' || combat_line.back() == '\t')) {
+        combat_line.pop_back();
+    }
+    std::size_t start = 0;
+    while (start < combat_line.size() && (combat_line[start] == ' ' || combat_line[start] == '\t')) {
+        ++start;
+    }
+    if (start > 0) {
+        combat_line.erase(0, start);
+    }
+
     int level = 0;
     int hitroll = 0;
     int ac = 0;
     char tail[256] = {};
     const int header = std::sscanf(combat_line.c_str(), "%d %d %d %255[^\n]", &level, &hitroll, &ac, tail);
     if (header < 4) {
-        throw ParseError("Invalid mob combat line");
+        throw ParseError(mob_context(mob) + ": invalid combat line (expected level hitroll ac ...): \"" + combat_line + "\"");
     }
 
     mob.level = level;
@@ -56,7 +75,7 @@ void read_new_mob_stats(FILE* fp, Mobile& mob) {
         char hit_buf[128] = {};
         char dam_buf[128] = {};
         if (std::sscanf(tail, "%127s %127s", hit_buf, dam_buf) < 2) {
-            throw ParseError("Invalid mob combat line for type S");
+            throw ParseError(mob_context(mob) + ": invalid type S combat line (expected hit_dice dam_dice): \"" + combat_line + "\"");
         }
         mob.hit_dice = hit_buf;
         mob.dam_dice = dam_buf;
@@ -64,7 +83,8 @@ void read_new_mob_stats(FILE* fp, Mobile& mob) {
     } else {
         char dam_buf[128] = {};
         if (std::sscanf(tail, "%d %127s", &mob.hit_bonus, dam_buf) < 2) {
-            throw ParseError("Invalid mob combat line for advanced mob type");
+            throw ParseError(mob_context(mob) + ": invalid type " + mob.mobtype
+                             + " combat line (expected hp_bonus dam_dice): \"" + combat_line + "\"");
         }
         mob.hit_dice.clear();
         mob.dam_dice = dam_buf;
@@ -127,7 +147,8 @@ void read_mobile_entry(FILE* fp, Mobile& mob) {
 
     mob.mobtype = fread_letter(fp);
     if (!is_new_mob_type(mob.mobtype)) {
-        throw ParseError(std::string("Unsupported mob type: ") + mob.mobtype);
+        throw ParseError(mob_context(mob) + ": unsupported mob type '" + mob.mobtype
+                         + "' (expected S, A, N, B, or L)");
     }
 
     if (mob.mobtype == 'A' || mob.mobtype == 'B' || mob.mobtype == 'L') {
@@ -225,7 +246,15 @@ void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCall
         if (mob.vnum >= 99999) {
             break;
         }
-        read_mobile_entry(fp, mob);
+        try {
+            read_mobile_entry(fp, mob);
+        } catch (const ParseError& ex) {
+            const std::string detail = ex.what();
+            if (detail.find("mob #") == std::string::npos) {
+                throw ParseError(mob_context(mob) + ": " + detail);
+            }
+            throw;
+        }
         world.mobiles.emplace(mob.vnum, std::move(mob));
     }
 

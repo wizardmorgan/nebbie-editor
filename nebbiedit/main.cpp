@@ -40,6 +40,8 @@ void usage() {
         << "  nebbiedit guild list\n"
         << "  nebbiedit guild show <name>\n"
         << "  nebbiedit validate <lib-directory>\n"
+        << "  nebbiedit check mob <myst.mob-path>\n"
+        << "  nebbiedit check lib <lib-directory>\n"
         << "  nebbiedit edit <lib-directory>\n"
         << "  nebbiedit room set <lib-directory> <vnum> [--name T] [--desc T] [--sector N]\n"
         << "  nebbiedit mob set <lib-directory> <vnum> [--short T] [--level N] [--alignment N]\n"
@@ -398,6 +400,44 @@ bool run(int argc, char** argv) {
                 std::cerr << "Guild not loaded: " << name << '\n';
                 return false;
             }
+        }
+
+        if (cmd == "check") {
+            if (argc < 4) {
+                usage();
+                return false;
+            }
+            const std::string kind = argv[2];
+            if (kind == "mob") {
+                nebbie::World world;
+                nebbie::load_myst_mob(world, argv[3]);
+                std::cout << "OK: " << world.mobiles.size() << " mobiles in " << argv[3] << '\n';
+                return true;
+            }
+            if (kind == "lib") {
+                nebbie::World world;
+                nebbie::LibContext context;
+                nebbie::load_lib(world, argv[3], context, [](const std::string& msg) {
+                    std::cout << msg << '\n';
+                });
+                std::cout << "OK: lib loaded from " << argv[3] << '\n';
+                std::cout << "  zones=" << world.zones.size()
+                          << " rooms=" << world.rooms.size()
+                          << " mobiles=" << world.mobiles.size()
+                          << " objects=" << world.objects.size() << '\n';
+                constexpr const char* kFiles[] = {
+                    "myst.zon", "myst.wld", "myst.mob", "myst.obj", "myst.shp", "myst.spe",
+                    "myst.dam", "myst.act", "myst.pos", "myst.gui",
+                };
+                const std::filesystem::path root = argv[3];
+                for (const char* file : kFiles) {
+                    std::cout << "  " << file << ": "
+                              << (std::filesystem::exists(root / file) ? "yes" : "no") << '\n';
+                }
+                return true;
+            }
+            usage();
+            return false;
         }
 
         if (cmd == "validate") {
