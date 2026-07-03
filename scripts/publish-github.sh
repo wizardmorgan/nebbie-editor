@@ -43,31 +43,24 @@ echo >&2
 if grep -qE '403|Permission.*denied|cursor\[bot\]' <<<"$PUSH_OUTPUT"; then
   cat >&2 <<'EOF'
 ════════════════════════════════════════════════════════════════════
-Push rifiutato: cursor[bot] non ha permesso di scrivere sul tuo repo.
+Push rifiutato: cursor[bot] non ha accesso in scrittura a QUESTO repo.
 ════════════════════════════════════════════════════════════════════
 
-Soluzione consigliata — push dal TUO computer con il TUO account GitHub:
+Se l'app Cursor è già in Read/Write su GitHub, il problema è quasi sempre
+che nebbie-editor non è nel token runtime dell'agent (repo nuovo o cache).
 
-  1. Apri il progetto nebbie-editor in Cursor (desktop) oppure clona il bundle:
-       git clone nebbie-editor.bundle nebbie-editor -b cursor/nebbie-editor-initial-c774
-     (il bundle si genera con: git bundle create nebbie-editor.bundle --all)
+Verifica: lo stesso agent riesce a pushare su altri repo tuoi (es. DikuEdit)
+ma non su nebbie-editor.
 
-  2. Collega il remote (se manca):
-       git remote add origin https://github.com/wizardmorgan/nebbie-editor.git
+Cosa provare:
+  1. GitHub → Settings → Installations → Cursor → Configure
+  2. Repository access: seleziona ESPLICITAMENTE "nebbie-editor"
+  3. cursor.com/dashboard → riconnetti GitHub
+  4. Rilancia questo script
 
-  3. Push con le tue credenziali GitHub (browser o PAT):
+Se non basta, push dal tuo PC con il tuo account GitHub:
+
        git push -u origin cursor/nebbie-editor-initial-c774
-
-  Con Personal Access Token (scope repo):
-       git push https://wizardmorgan:<TOKEN>@github.com/wizardmorgan/nebbie-editor.git cursor/nebbie-editor-initial-c774
-
-Soluzione alternativa — dare accesso all'app Cursor su GitHub:
-
-  1. https://github.com/settings/installations
-  2. Apri "Cursor" → Configure
-  3. Repository access: aggiungi "nebbie-editor" (o All repositories)
-  4. Verifica permesso "Contents" = Read and write
-  5. Rilancia questo script
 
 Guida completa: docs/PUBBLICAZIONE.md
 EOF

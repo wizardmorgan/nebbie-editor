@@ -2,9 +2,18 @@
 
 Il repository destinazione è: https://github.com/wizardmorgan/nebbie-editor
 
-## Perché compare il 403 con `cursor[bot]`
+## Perché compare il 403 con `cursor[bot]` (anche con l'app Cursor in Read/Write)
 
-Gli agent cloud di Cursor usano l'identità **`cursor[bot]`**. Su molti account personali GitHub questa identità può **leggere** i repository ma **non scrivere**, anche se il repo esiste ed è tuo.
+Gli agent cloud di Cursor usano l'identità **`cursor[bot]`**. Su GitHub l'app Cursor può risultare configurata con **Contents: Read and write**, ma il **token usato a runtime** non sempre eredita quel permesso su **ogni** repository.
+
+Sintomo verificato su questo progetto:
+
+| Repository | Push da agent cloud |
+|------------|---------------------|
+| `wizardmorgan/DikuEdit` | OK |
+| `wizardmorgan/nebbie-editor` | 403 denied to cursor[bot] |
+
+Quindi il problema **non** è “mancano i permessi globali all'app”, ma che **`nebbie-editor` non è ancora incluso nel token effettivo** dell'agent (repo creato dopo l'installazione, cache del token, o bug noto dell'integrazione Cursor).
 
 Messaggio tipico:
 
@@ -12,8 +21,6 @@ Messaggio tipico:
 remote: Permission to wizardmorgan/nebbie-editor.git denied to cursor[bot].
 fatal: unable to access '...': The requested URL returned error: 403
 ```
-
-Questo **non** è un errore del codice: serve un push con **le tue** credenziali GitHub, oppure dare all'app Cursor il permesso di scrittura sul repo.
 
 ---
 
@@ -54,15 +61,17 @@ git push -u origin main
 
 ---
 
-## Metodo 2 — Permessi all'app Cursor su GitHub
+## Metodo 2 — Ricollegare `nebbie-editor` all'app Cursor
 
-1. Vai su https://github.com/settings/installations
-2. Clicca **Configure** accanto a **Cursor**
-3. **Repository access** → seleziona **nebbie-editor** (o *All repositories*)
-4. Verifica che **Contents** sia **Read and write**
-5. Salva e rilancia `./scripts/publish-github.sh`
+Se l'app Cursor è già in Read/Write ma il push fallisce solo su `nebbie-editor`, prova **in questo ordine**:
 
-Se dopo questa configurazione il push funziona dall'agent cloud, non serve altro.
+1. https://github.com/settings/installations → **Cursor** → **Configure**
+2. **Repository access** → passa a *Only select repositories*, aggiungi esplicitamente **nebbie-editor**, salva  
+   (oppure: rimuovi e ri-aggiungi il repo se già selezionato)
+3. https://cursor.com/dashboard → disconnetti e riconnetti GitHub
+4. Riavvia l'agent cloud e rilancia `./scripts/publish-github.sh`
+
+Se dopo questi passaggi il 403 persiste, è un limite noto del token runtime di Cursor: usa il Metodo 1 (push dal tuo PC).
 
 ---
 

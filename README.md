@@ -43,9 +43,9 @@ ctest --test-dir build
 
 Repository: **https://github.com/wizardmorgan/nebbie-editor**
 
-> **403 con `cursor[bot]`?** L'agent cloud non può pushare sul tuo account senza permessi di scrittura.  
-> Pusha dal tuo PC con il tuo login GitHub, oppure configura l'app Cursor.  
-> Guida: [docs/PUBBLICAZIONE.md](docs/PUBBLICAZIONE.md)
+> **403 con `cursor[bot]` anche se l'app Cursor è in Read/Write?**  
+> Il token runtime dell'agent spesso non include repo nuovi come `nebbie-editor`,  
+> anche se l'app GitHub è configurata correttamente. Vedi [docs/PUBBLICAZIONE.md](docs/PUBBLICAZIONE.md).
 
 ```bash
 # Dal tuo computer:
