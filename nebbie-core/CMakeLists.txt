@@ -12,6 +12,7 @@ add_library(nebbie-core
     src/pos_io.cpp
     src/gui_io.cpp
     src/lib_io.cpp
+    src/overlay_io.cpp
     src/lib_context.cpp
     src/validate.cpp
     src/edit.cpp

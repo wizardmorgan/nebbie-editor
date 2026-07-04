@@ -21,6 +21,18 @@ void load_myst_dam(World& world, const std::filesystem::path& path, ProgressCall
 void load_myst_act(World& world, const std::filesystem::path& path, ProgressCallback progress = {});
 void load_myst_pos(World& world, const std::filesystem::path& path, ProgressCallback progress = {});
 void load_myst_gui(World& world, const std::filesystem::path& path, ProgressCallback progress = {});
+void load_zone_overlay_file(World& world, int zone_table_index, const std::filesystem::path& path,
+                            ProgressCallback progress = {});
+void load_room_overlay_file(World& world, long vnum, const std::filesystem::path& path,
+                            ProgressCallback progress = {});
+void load_object_overlay_file(World& world, long vnum, const std::filesystem::path& path,
+                              ProgressCallback progress = {});
+void load_zone_overlays(World& world, const std::filesystem::path& zones_dir, LibContext& context,
+                        ProgressCallback progress = {});
+void load_room_overlays(World& world, const std::filesystem::path& rooms_dir, LibContext& context,
+                        ProgressCallback progress = {});
+void load_object_overlays(World& world, const std::filesystem::path& objects_dir, LibContext& context,
+                          ProgressCallback progress = {});
 void load_lib(World& world, const std::filesystem::path& lib_root, ProgressCallback progress = {});
 void load_lib(World& world, const std::filesystem::path& lib_root, LibContext& context,
               ProgressCallback progress = {});

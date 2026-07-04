@@ -204,6 +204,99 @@ bool peek_is_eof(FILE* fp) {
     return eof;
 }
 
+void read_room_overlay_body(FILE* fp, Room& room, World& world) {
+    room.exits.clear();
+    room.extra_descs.clear();
+    room.bright_at_night.clear();
+    room.bright_at_day.clear();
+
+    room.name = fread_string(fp);
+    room.description = fread_string(fp);
+
+    (void)fread_number(fp);
+
+    room.room_flags = fread_number(fp);
+    const long sector_field = fread_number(fp);
+
+    room.tele_time = 0;
+    room.tele_targ = 0;
+    room.tele_mask = 0;
+    room.tele_cnt = 0;
+
+    if (sector_field != -1) {
+        room.sector_type = static_cast<int>(sector_field);
+    } else {
+        room.tele_time = fread_number(fp);
+        room.tele_targ = fread_number(fp);
+        room.tele_mask = fread_number(fp);
+        if (room.tele_mask & TELE_COUNT) {
+            room.tele_cnt = fread_number(fp);
+            room.sector_type = static_cast<int>(fread_number(fp));
+        } else {
+            room.tele_cnt = 0;
+            room.sector_type = static_cast<int>(fread_number(fp));
+        }
+    }
+
+    const long sector = room.sector_type;
+
+    if (sector == SECT_WATER_NOSWIM || sector == SECT_UNDERWATER) {
+        room.river_speed = fread_if_number(fp);
+        room.river_dir = fread_if_number(fp);
+    } else {
+        room.river_speed = 0;
+        room.river_dir = 0;
+    }
+
+    if (room.room_flags & TUNNEL) {
+        room.moblim = fread_if_number(fp);
+        if (room.moblim < 1) {
+            room.moblim = 1;
+        }
+    } else {
+        room.moblim = 0;
+    }
+
+    if (const Zone* zone = world.zone_for_vnum(room.vnum)) {
+        for (size_t i = 0; i < world.zones.size(); ++i) {
+            if (&world.zones[i] == zone) {
+                room.zone_index = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+
+    char token[161];
+    while (std::fscanf(fp, " %160s", token) == 1) {
+        switch (token[0]) {
+        case 'D':
+            read_exit(fp, room, std::atoi(token + 1));
+            break;
+        case 'E': {
+            ExtraDesc extra;
+            extra.keyword = fread_string(fp);
+            extra.description = fread_string(fp);
+            room.extra_descs.push_back(extra);
+            break;
+        }
+        case 'L':
+            room.bright_at_night = fread_string(fp);
+            room.bright_at_day = fread_string(fp);
+            break;
+        case 'S':
+            return;
+        case 'C':
+            fread_to_eol(fp);
+            break;
+        default:
+            fread_to_eol(fp);
+            break;
+        }
+    }
+
+    throw ParseError("Room overlay " + std::to_string(room.vnum) + " missing terminating S");
+}
+
 } // namespace
 
 void load_myst_wld(World& world, const std::filesystem::path& path, ProgressCallback progress) {
@@ -304,6 +397,27 @@ void save_myst_wld(const World& world, const std::filesystem::path& path, Progre
         std::fprintf(fp, "S\n");
     }
     std::fprintf(fp, "#0\n");
+    std::fclose(fp);
+}
+
+void load_room_overlay_file(World& world,
+                            long vnum,
+                            const std::filesystem::path& path,
+                            ProgressCallback progress) {
+    FILE* fp = open_read(path);
+    if (progress) {
+        progress("Loading room overlay " + path.string());
+    }
+
+    if (fread_letter(fp) != '#') {
+        throw ParseError("Expected # in room overlay: " + path.string());
+    }
+    (void)fread_number(fp);
+
+    Room room;
+    room.vnum = vnum;
+    read_room_overlay_body(fp, room, world);
+    world.rooms[vnum] = std::move(room);
     std::fclose(fp);
 }
 

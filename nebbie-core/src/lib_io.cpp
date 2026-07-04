@@ -2,6 +2,7 @@
 
 #include "nebbie/constants.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 
@@ -64,15 +65,18 @@ void load_lib(World& world,
 
     load_if_exists(resolved / ZONE_FILE, context.has_zon, [&]() {
         load_myst_zon(world, resolved / ZONE_FILE, progress);
+        load_zone_overlays(world, resolved / "zones", context, progress);
     });
     load_if_exists(resolved / WORLD_FILE, context.has_wld, [&]() {
         load_myst_wld(world, resolved / WORLD_FILE, progress);
+        load_room_overlays(world, resolved / "rooms", context, progress);
     });
     load_if_exists(resolved / MOB_FILE, context.has_mob, [&]() {
         load_myst_mob(world, resolved / MOB_FILE, progress);
     });
     load_if_exists(resolved / OBJ_FILE, context.has_obj, [&]() {
         load_myst_obj(world, resolved / OBJ_FILE, progress);
+        load_object_overlays(world, resolved / "objects", context, progress);
     });
     load_if_exists(resolved / SHOP_FILE, context.has_shp, [&]() {
         load_myst_shp(world, resolved / SHOP_FILE, progress);

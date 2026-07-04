@@ -167,4 +167,80 @@ void save_myst_zon(const World& world, const std::filesystem::path& path, Progre
     std::fclose(fp);
 }
 
+void load_zone_reset_overlay(FILE* fp, Zone& zone) {
+    zone.commands.clear();
+
+    char buf[512];
+    while (true) {
+        int c = std::fgetc(fp);
+        while (c != EOF && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
+            c = std::fgetc(fp);
+        }
+        if (c == EOF) {
+            break;
+        }
+
+        const char command = static_cast<char>(c);
+        if (command == 'S') {
+            ResetCommand end;
+            end.command = 'S';
+            zone.commands.push_back(end);
+            break;
+        }
+
+        if (command == '*') {
+            if (!std::fgets(buf, sizeof(buf), fp)) {
+                break;
+            }
+            ResetCommand comment;
+            comment.command = '*';
+            comment.raw_line = buf;
+            zone.commands.push_back(comment);
+            continue;
+        }
+
+        ResetCommand reset;
+        reset.command = command;
+        reset.arg3 = -1;
+        reset.arg4 = 0;
+
+        int tmp = 0;
+        if (std::fscanf(fp, " %d %d %d", &tmp, &reset.arg1, &reset.arg2) != 3) {
+            throw ParseError("Invalid zone overlay reset command");
+        }
+        reset.if_flag = tmp;
+
+        if (command == 'M' || command == 'O' || command == 'C' || command == 'E' || command == 'P'
+            || command == 'D') {
+            int arg3 = 0;
+            if (std::fscanf(fp, " %d", &arg3) == 1) {
+                reset.arg3 = arg3;
+            }
+        }
+
+        if (!std::fgets(buf, sizeof(buf), fp)) {
+            buf[0] = '\0';
+        }
+        reset.raw_line = buf;
+        zone.commands.push_back(reset);
+    }
+}
+
+void load_zone_overlay_file(World& world,
+                            int zone_table_index,
+                            const std::filesystem::path& path,
+                            ProgressCallback progress) {
+    if (zone_table_index < 0 || zone_table_index >= static_cast<int>(world.zones.size())) {
+        throw ParseError("Zone overlay index out of range: " + std::to_string(zone_table_index));
+    }
+
+    FILE* fp = open_read(path);
+    if (progress) {
+        progress("Loading zone overlay " + path.string());
+    }
+
+    load_zone_reset_overlay(fp, world.zones[static_cast<std::size_t>(zone_table_index)]);
+    std::fclose(fp);
+}
+
 } // namespace nebbie

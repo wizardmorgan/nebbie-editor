@@ -371,4 +371,26 @@ void save_myst_obj(const World& world, const std::filesystem::path& path, Progre
     std::fclose(fp);
 }
 
+void load_object_overlay_file(World& world,
+                              long vnum,
+                              const std::filesystem::path& path,
+                              ProgressCallback progress) {
+    FILE* fp = open_read(path);
+    if (progress) {
+        progress("Loading object overlay " + path.string());
+    }
+
+    const char marker = read_obj_marker(fp);
+    if (marker != '#') {
+        throw ParseError("Expected # in object overlay: " + path.string());
+    }
+    (void)fread_number(fp);
+
+    GameObject obj;
+    obj.vnum = vnum;
+    read_object_entry(fp, obj);
+    world.objects[vnum] = std::move(obj);
+    std::fclose(fp);
+}
+
 } // namespace nebbie

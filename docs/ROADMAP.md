@@ -17,10 +17,11 @@
 - [x] **Mappa mondo (zone)**: collegamenti inter-zona, vnum usati/liberi
 - [x] Navigazione mondo→mappa stanze + export PNG
 - [x] **Config libreria predefinita**: file testo `nebbieedit.conf` + dialogo al primo avvio
+- [x] **Load overlay server**: `zones/`, `rooms/`, `objects/` (come boot Nebbie)
 
 ## Prossimo passo immediato
 
-**Mappa** — sincronizzazione zona↔mappa stanze; export immagine; layout zone migliorato.
+**Save overlay** compatibile server (`rsave`/`osave`/`zsave`) + registry vnum nel repo lib. Vedi [SYNC.md](SYNC.md).
 
 ## Fase 6 — Mappa zone
 
