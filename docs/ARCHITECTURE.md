@@ -22,11 +22,11 @@ world/      # stato runtime stanza (oggetti/mob a terra), NON prototipi
 | Percorso | Ruolo | Boot server | Editor oggi |
 |----------|-------|-------------|-------------|
 | `myst.obj` | Catalogo oggetti | Base | ✅ carica/salva |
-| `objects/<vnum>` | Oggetto singolo | **Sostituisce** la voce in `myst.obj` per quel vnum; può esistere **solo** in directory | ❌ non letto |
+| `objects/<vnum>` | Oggetto singolo | **Sostituisce** la voce in `myst.obj` per quel vnum; può esistere **solo** in directory | ✅ load |
 | `myst.wld` | Catalogo stanze | Base | ✅ |
-| `rooms/<vnum>` | Stanza singola | **Sovrascrive** la stanza già caricata da `myst.wld` | ❌ |
+| `rooms/<vnum>` | Stanza singola | **Sovrascrive** la stanza già caricata da `myst.wld` | ✅ load |
 | `myst.zon` | Zone + reset | Base | ✅ |
-| `zones/<n>.zon` | Reset di una zona | **Sovrascrive** i comandi reset della zona | ❌ |
+| `zones/<n>.zon` | Reset di una zona | **Sovrascrive** i comandi reset (indice tabella zone, come `zsave`) | ✅ load |
 | `myst.mob` | Catalogo mob | Base | ✅ |
 | `mobiles/<vnum>` | Mob singolo | Indicizzato come oggetti, ma `read_mobile()` **non** legge `pos==-1` | ❌ |
 | `myst.shp/spe/dam/act/pos/gui` | Tabelle monolitiche | Solo file | ✅ |
@@ -42,10 +42,12 @@ world/      # stato runtime stanza (oggetti/mob a terra), NON prototipi
 
 ### Approccio editor (evoluzione)
 
-1. **Ora:** `World` in memoria da `myst.*` (canonico, versionato in git).
-2. **Prossimo:** pipeline load `myst.*` → applica overlay `objects/`, `rooms/`, `zones/` con le stesse regole del server.
+1. **Ora:** `World` in memoria da `myst.*` + overlay `objects/`, `rooms/`, `zones/` (load).
+2. **Prossimo:** save overlay compatibile server (`rsave`/`osave`/`zsave`).
 3. **Save:** modalità sicura (`myst.*` only) vs compatibile server (file in overlay per entità modificate).
 4. **DB (roadmap):** stesso modello `World`, persistenza alternativa; i file restano source of truth finché il boot non migra.
+
+Vedi [SYNC.md](SYNC.md) per sincronizzazione installazioni editor e lib di produzione.
 
 ## Moduli editor
 

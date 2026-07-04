@@ -1,3 +1,8 @@
+add_executable(nebbie-overlay-tests test_overlays.cpp)
+target_link_libraries(nebbie-overlay-tests PRIVATE nebbie-core)
+
+add_test(NAME overlay-fixtures COMMAND nebbie-overlay-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
+
 add_executable(nebbie-core-tests test_io.cpp)
 target_link_libraries(nebbie-core-tests PRIVATE nebbie-core)
 

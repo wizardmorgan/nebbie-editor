@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <vector>
 
 namespace nebbie {
 
@@ -17,7 +18,12 @@ struct LibContext {
     bool has_pos = false;
     bool has_gui = false;
 
+    std::vector<int> zone_overlay_indices;
+    std::vector<long> room_overlay_vnums;
+    std::vector<long> object_overlay_vnums;
+
     bool has_any() const;
+    bool has_overlays() const;
 };
 
 } // namespace nebbie

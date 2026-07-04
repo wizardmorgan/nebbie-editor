@@ -602,12 +602,18 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     refreshZoneMap();
     refreshWorldZoneMap();
 
-    const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
-                              .arg(QString::fromStdString(path.string()))
-                              .arg(world_.zones.size())
-                              .arg(world_.rooms.size())
-                              .arg(world_.mobiles.size())
-                              .arg(world_.objects.size());
+    QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
+                        .arg(QString::fromStdString(path.string()))
+                        .arg(world_.zones.size())
+                        .arg(world_.rooms.size())
+                        .arg(world_.mobiles.size())
+                        .arg(world_.objects.size());
+    if (context_.has_overlays()) {
+        label += QString(" | overlay: %1 zone, %2 stanze, %3 oggetti")
+                     .arg(context_.zone_overlay_indices.size())
+                     .arg(context_.room_overlay_vnums.size())
+                     .arg(context_.object_overlay_vnums.size());
+    }
     lib_label_->setText(label);
     last_version_time_ = std::chrono::system_clock::now();
     autosave_timer_->start();
