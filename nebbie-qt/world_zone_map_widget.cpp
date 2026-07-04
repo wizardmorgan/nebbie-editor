@@ -142,20 +142,21 @@ void resolve_rect_overlaps(std::vector<QRectF>& rects, qreal margin) {
     }
 }
 
-void add_zone_line_labels(QGraphicsRectItem* box,
+void add_zone_line_labels(QGraphicsScene* scene,
+                          const QRectF& rect,
                           int zone_num,
                           const QStringList& lines) {
     const QFont font = zone_label_font();
     const QFontMetrics fm(font);
     const qreal line_step = fm.lineSpacing() + 2.0;
-    qreal y = kZonePadding;
+    qreal y = rect.y() + kZonePadding;
 
     for (const QString& line : lines) {
-        auto* item = new QGraphicsSimpleTextItem(line, box);
+        auto* item = scene->addSimpleText(line);
         item->setFont(font);
         item->setBrush(QColor(25, 25, 25));
-        item->setPos(kZonePadding, y);
-        item->setZValue(1);
+        item->setPos(rect.x() + kZonePadding, y);
+        item->setZValue(3);
         item->setData(kDataZone, zone_num);
         y += line_step;
     }
@@ -338,10 +339,9 @@ void WorldZoneMapWidget::rebuildScene() {
         node_item->rect = scene_->addRect(rect, pen, brush);
         node_item->rect->setZValue(2);
         node_item->rect->setData(kDataZone, zone.zone_num);
-        node_item->rect->setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
 
         const ZoneLayoutInfo& layout = layouts[idx_it->second];
-        add_zone_line_labels(node_item->rect, zone.zone_num, layout.lines);
+        add_zone_line_labels(scene_, rect, zone.zone_num, layout.lines);
 
         const QString used_list = zone.used_vnums.empty()
             ? QStringLiteral("(nessuna stanza)")
