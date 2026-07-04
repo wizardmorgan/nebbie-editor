@@ -18,11 +18,37 @@ void load_if_exists(const std::filesystem::path& path,
     }
 }
 
+bool lib_marker_exists(const std::filesystem::path& dir) {
+    return std::filesystem::exists(dir / ZONE_FILE) || std::filesystem::exists(dir / MOB_FILE)
+           || std::filesystem::exists(dir / WORLD_FILE) || std::filesystem::exists(dir / OBJ_FILE);
+}
+
 } // namespace
+
+std::filesystem::path resolve_lib_directory(const std::filesystem::path& path) {
+    std::error_code ec;
+    std::filesystem::path candidate = path;
+    if (std::filesystem::is_regular_file(candidate, ec)) {
+        const std::string name = candidate.filename().string();
+        if (name == ZONE_FILE || name == MOB_FILE || name == WORLD_FILE || name == OBJ_FILE) {
+            candidate = candidate.parent_path();
+        }
+    }
+
+    if (lib_marker_exists(candidate)) {
+        return candidate;
+    }
+
+    const auto lib_subdir = candidate / "lib";
+    if (lib_marker_exists(lib_subdir)) {
+        return lib_subdir;
+    }
+
+    return candidate;
+}
 
 void load_lib(World& world, const std::filesystem::path& lib_root, ProgressCallback progress) {
     LibContext context;
-    context.root = lib_root;
     load_lib(world, lib_root, context, progress);
 }
 
@@ -32,37 +58,39 @@ void load_lib(World& world,
               ProgressCallback progress) {
     world.clear();
     context = {};
-    context.root = lib_root;
 
-    load_if_exists(lib_root / ZONE_FILE, context.has_zon, [&]() {
-        load_myst_zon(world, lib_root / ZONE_FILE, progress);
+    const std::filesystem::path resolved = resolve_lib_directory(lib_root);
+    context.root = resolved;
+
+    load_if_exists(resolved / ZONE_FILE, context.has_zon, [&]() {
+        load_myst_zon(world, resolved / ZONE_FILE, progress);
     });
-    load_if_exists(lib_root / WORLD_FILE, context.has_wld, [&]() {
-        load_myst_wld(world, lib_root / WORLD_FILE, progress);
+    load_if_exists(resolved / WORLD_FILE, context.has_wld, [&]() {
+        load_myst_wld(world, resolved / WORLD_FILE, progress);
     });
-    load_if_exists(lib_root / MOB_FILE, context.has_mob, [&]() {
-        load_myst_mob(world, lib_root / MOB_FILE, progress);
+    load_if_exists(resolved / MOB_FILE, context.has_mob, [&]() {
+        load_myst_mob(world, resolved / MOB_FILE, progress);
     });
-    load_if_exists(lib_root / OBJ_FILE, context.has_obj, [&]() {
-        load_myst_obj(world, lib_root / OBJ_FILE, progress);
+    load_if_exists(resolved / OBJ_FILE, context.has_obj, [&]() {
+        load_myst_obj(world, resolved / OBJ_FILE, progress);
     });
-    load_if_exists(lib_root / SHOP_FILE, context.has_shp, [&]() {
-        load_myst_shp(world, lib_root / SHOP_FILE, progress);
+    load_if_exists(resolved / SHOP_FILE, context.has_shp, [&]() {
+        load_myst_shp(world, resolved / SHOP_FILE, progress);
     });
-    load_if_exists(lib_root / SPECIAL_FILE, context.has_spe, [&]() {
-        load_myst_spe(world, lib_root / SPECIAL_FILE, progress);
+    load_if_exists(resolved / SPECIAL_FILE, context.has_spe, [&]() {
+        load_myst_spe(world, resolved / SPECIAL_FILE, progress);
     });
-    load_if_exists(lib_root / DAMAGE_FILE, context.has_dam, [&]() {
-        load_myst_dam(world, lib_root / DAMAGE_FILE, progress);
+    load_if_exists(resolved / DAMAGE_FILE, context.has_dam, [&]() {
+        load_myst_dam(world, resolved / DAMAGE_FILE, progress);
     });
-    load_if_exists(lib_root / SOCIAL_FILE, context.has_act, [&]() {
-        load_myst_act(world, lib_root / SOCIAL_FILE, progress);
+    load_if_exists(resolved / SOCIAL_FILE, context.has_act, [&]() {
+        load_myst_act(world, resolved / SOCIAL_FILE, progress);
     });
-    load_if_exists(lib_root / POSE_FILE, context.has_pos, [&]() {
-        load_myst_pos(world, lib_root / POSE_FILE, progress);
+    load_if_exists(resolved / POSE_FILE, context.has_pos, [&]() {
+        load_myst_pos(world, resolved / POSE_FILE, progress);
     });
-    load_if_exists(lib_root / GUILD_FILE, context.has_gui, [&]() {
-        load_myst_gui(world, lib_root / GUILD_FILE, progress);
+    load_if_exists(resolved / GUILD_FILE, context.has_gui, [&]() {
+        load_myst_gui(world, resolved / GUILD_FILE, progress);
     });
 }
 

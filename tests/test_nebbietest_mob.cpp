@@ -119,6 +119,21 @@ int main(int argc, char** argv) {
             }
         }
 
+        const auto lib_fixture = std::filesystem::path("tests/fixtures");
+        if (std::filesystem::exists(lib_fixture / "myst.mob")) {
+            const auto resolved = nebbie::resolve_lib_directory(lib_fixture);
+            if (resolved.filename() != "fixtures") {
+                throw std::runtime_error("resolve_lib_directory should keep fixtures path");
+            }
+        }
+        const auto mudroot_fixture = std::filesystem::path("vendor/nebbietest/mudroot");
+        if (std::filesystem::exists(mudroot_fixture / "lib" / "myst.mob")) {
+            const auto resolved = nebbie::resolve_lib_directory(mudroot_fixture);
+            if (resolved.filename() != "lib") {
+                throw std::runtime_error("resolve_lib_directory should find mudroot/lib");
+            }
+        }
+
         const nebbie::Mobile* vendor_ron = world.find_mobile(1717);
         if (vendor_ron && vendor_ron->mobtype == 'L') {
             if (vendor_ron->sounds.find("Compai") == std::string::npos

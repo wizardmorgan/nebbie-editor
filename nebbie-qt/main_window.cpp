@@ -337,9 +337,20 @@ void MainWindow::openLibPath(const QString& path) {
         return;
     }
     try {
-        loadLib(std::filesystem::path(path.toStdString()));
+        const std::filesystem::path requested(path.toStdString());
+        const std::filesystem::path resolved = nebbie::resolve_lib_directory(requested);
+        loadLib(resolved);
+        if (resolved != requested) {
+            setStatus(QString("Libreria risolta in: %1").arg(QString::fromStdString(resolved.string())));
+        }
     } catch (const std::exception& ex) {
-        QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
+        const std::filesystem::path resolved = nebbie::resolve_lib_directory(path.toStdString());
+        const QString detail = QString::fromUtf8(ex.what())
+                               + QString("\n\nPercorso richiesto: %1").arg(path)
+                               + QString("\nPercorso risolto: %1").arg(QString::fromStdString(resolved.string()))
+                               + "\n\nSeleziona la cartella mudroot/lib e ricompila la GUI:\n"
+                                 "  ./scripts/build.sh";
+        QMessageBox::critical(this, "Errore caricamento libreria", detail);
     }
 }
 
@@ -349,7 +360,7 @@ void MainWindow::openLib() {
     }
 
     const QString dir = QFileDialog::getExistingDirectory(
-        this, "Apri libreria Nebbie", QString(),
+        this, "Apri libreria Nebbie (mudroot o mudroot/lib)", QString(),
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if (dir.isEmpty()) {
         return;
