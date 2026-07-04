@@ -19,6 +19,8 @@ public:
     void setActiveZLevel(int z);
     int activeZLevel() const;
     std::vector<int> availableZLevels() const;
+    void setShowBrokenOnly(bool enabled);
+    void setHighlightedVnum(long vnum);
 
 signals:
     void roomActivated(long vnum);
@@ -41,6 +43,8 @@ private:
     nebbie::ZoneGraph graph_;
     nebbie::ZoneZLayout z_layout_;
     int active_z_ = 0;
+    bool show_broken_only_ = false;
+    long highlighted_vnum_ = -1;
     QHash<long, NodeItem*> nodes_by_vnum_;
     QList<VerticalBadge*> vertical_badges_;
 };

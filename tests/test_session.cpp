@@ -38,6 +38,20 @@ int main(int argc, char** argv) {
         }
 
         if (!world.zones.empty()) {
+            const auto world_graph = nebbie::build_world_zone_graph(world);
+            if (world_graph.zones.size() != world.zones.size()) {
+                throw std::runtime_error("world zone graph size mismatch");
+            }
+            if (!world_graph.zones.empty() && world_graph.zones.front().free_count < 0) {
+                throw std::runtime_error("invalid free vnum count");
+            }
+            const std::string world_dot = nebbie::world_zone_graph_to_dot(world_graph);
+            if (world_dot.find("digraph") == std::string::npos) {
+                throw std::runtime_error("invalid world zone dot output");
+            }
+        }
+
+        if (!world.zones.empty()) {
             const int zone_num = world.zones.front().num;
             const auto rooms = nebbie::rooms_in_zone(world, zone_num);
             const auto graph = nebbie::build_zone_graph(world, zone_num);

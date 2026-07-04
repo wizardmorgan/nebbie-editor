@@ -1,6 +1,7 @@
 #include "main_window.hpp"
 
 #include "app_config.hpp"
+#include "world_zone_map_widget.hpp"
 #include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
 #include "nebbie/io.hpp"
@@ -11,7 +12,8 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
-#include <QColor>
+#include <QCheckBox>
+#include <QTabWidget>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -273,27 +275,66 @@ void MainWindow::setupUi() {
 
     map_tab_ = new QWidget;
     auto* map_layout = new QVBoxLayout(map_tab_);
-    map_layout->addWidget(new QLabel("Mappa interattiva. Piano Z: solo stanze del livello; clic su su/giù per cambiare piano."));
+    auto* map_tabs = new QTabWidget;
+
+    auto* map_zone_page = new QWidget;
+    auto* map_zone_layout = new QVBoxLayout(map_zone_page);
+    map_zone_layout->addWidget(
+        new QLabel("Stanze della zona. Piano Z separato; clic su su/giù cambia piano ed evidenzia la destinazione."));
     auto* map_top = new QHBoxLayout;
     map_zone_ = new QComboBox;
     map_floor_ = new QComboBox;
-    auto* map_refresh = new QPushButton("Aggiorna mappa");
+    map_broken_only_ = new QCheckBox("Solo link rotti");
+    auto* map_refresh = new QPushButton("Aggiorna");
     auto* map_export_dot = new QPushButton("Esporta DOT");
     map_top->addWidget(new QLabel("Zona:"));
     map_top->addWidget(map_zone_, 1);
     map_top->addWidget(new QLabel("Piano Z:"));
     map_top->addWidget(map_floor_);
+    map_top->addWidget(map_broken_only_);
     map_top->addWidget(map_refresh);
     map_top->addWidget(map_export_dot);
-    map_layout->addLayout(map_top);
+    map_zone_layout->addLayout(map_top);
 
     map_view_ = new ZoneMapWidget;
-    map_view_->setMinimumHeight(360);
-    map_layout->addWidget(map_view_, 1);
+    map_view_->setMinimumHeight(320);
+    map_zone_layout->addWidget(map_view_, 1);
 
     map_stats_ = new QLabel;
     map_stats_->setWordWrap(true);
-    map_layout->addWidget(map_stats_);
+    map_zone_layout->addWidget(map_stats_);
+    map_tabs->addTab(map_zone_page, "Zona");
+
+    auto* map_world_page = new QWidget;
+    auto* map_world_layout = new QVBoxLayout(map_world_page);
+    map_world_layout->addWidget(
+        new QLabel("Collegamenti tra zone (non stanze). U=vnum usati, L=vnum liberi nel range. Clic seleziona, doppio clic apre tab Zone."));
+    auto* world_top = new QHBoxLayout;
+    world_map_broken_only_ = new QCheckBox("Solo link rotti");
+    auto* world_refresh = new QPushButton("Aggiorna");
+    auto* world_export_dot = new QPushButton("Esporta DOT");
+    world_top->addWidget(world_map_broken_only_);
+    world_top->addStretch(1);
+    world_top->addWidget(world_refresh);
+    world_top->addWidget(world_export_dot);
+    map_world_layout->addLayout(world_top);
+
+    world_map_view_ = new WorldZoneMapWidget;
+    world_map_view_->setMinimumHeight(320);
+    map_world_layout->addWidget(world_map_view_, 2);
+
+    world_map_details_ = new QPlainTextEdit;
+    world_map_details_->setReadOnly(true);
+    world_map_details_->setPlaceholderText("Clic su una zona per vedere vnum usati e liberi.");
+    world_map_details_->setMaximumHeight(140);
+    map_world_layout->addWidget(world_map_details_, 1);
+
+    world_map_stats_ = new QLabel;
+    world_map_stats_->setWordWrap(true);
+    map_world_layout->addWidget(world_map_stats_);
+    map_tabs->addTab(map_world_page, "Mondo (zone)");
+
+    map_layout->addWidget(map_tabs, 1);
     tabs_->addTab(map_tab_, "Mappa");
 
     validation_tab_ = new QWidget;
@@ -348,6 +389,12 @@ void MainWindow::setupUi() {
     connect(validation_list_, &QListWidget::itemDoubleClicked, this, &MainWindow::onValidationIssueActivated);
     connect(map_refresh, &QPushButton::clicked, this, &MainWindow::refreshZoneMap);
     connect(map_zone_, &QComboBox::currentIndexChanged, this, [this](int) { refreshZoneMap(); });
+    connect(map_broken_only_, &QCheckBox::toggled, this, [this](bool enabled) {
+        if (map_view_) {
+            map_view_->setShowBrokenOnly(enabled);
+            updateMapStats();
+        }
+    });
     connect(map_floor_, &QComboBox::currentIndexChanged, this, [this](int index) {
         if (index < 0 || !map_view_) {
             return;
@@ -367,9 +414,8 @@ void MainWindow::setupUi() {
         } else {
             map_view_->setActiveZLevel(target_z);
         }
-        setStatus(QString("Mappa: piano Z=%1, stanza #%2 (clic per aprire in editor).")
-                      .arg(target_z)
-                      .arg(target_vnum));
+        map_view_->setHighlightedVnum(target_vnum);
+        setStatus(QString("Mappa: piano Z=%1, evidenciata stanza #%2.").arg(target_z).arg(target_vnum));
     });
     connect(map_export_dot, &QPushButton::clicked, this, [this]() {
         if (map_zone_->count() == 0) {
@@ -378,7 +424,29 @@ void MainWindow::setupUi() {
         const int zone_num = map_zone_->currentData().toInt();
         const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
         QApplication::clipboard()->setText(QString::fromStdString(nebbie::zone_graph_to_dot(graph)));
-        setStatus("DOT copiato negli appunti.");
+        setStatus("DOT zona copiato negli appunti.");
+    });
+    connect(world_refresh, &QPushButton::clicked, this, &MainWindow::refreshWorldZoneMap);
+    connect(world_map_broken_only_, &QCheckBox::toggled, this, [this](bool enabled) {
+        if (world_map_view_) {
+            world_map_view_->setShowBrokenOnly(enabled);
+        }
+    });
+    connect(world_map_view_, &WorldZoneMapWidget::zoneSelected, this, [this](int zone_num) {
+        updateWorldZoneDetails(zone_num);
+    });
+    connect(world_map_view_, &WorldZoneMapWidget::zoneActivated, this, [this](int zone_num) {
+        if (zone_tab_) {
+            tabs_->setCurrentWidget(zone_tab_);
+        }
+        selectZoneByNum(zone_num);
+        updateWorldZoneDetails(zone_num);
+        setStatus(QString("Mappa mondo: selezionata zona #%1.").arg(zone_num));
+    });
+    connect(world_export_dot, &QPushButton::clicked, this, [this]() {
+        const nebbie::WorldZoneGraph graph = nebbie::build_world_zone_graph(world_);
+        QApplication::clipboard()->setText(QString::fromStdString(nebbie::world_zone_graph_to_dot(graph)));
+        setStatus("DOT mondo (zone) copiato negli appunti.");
     });
     updateResetFieldHints();
 
@@ -513,6 +581,7 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     refreshObjectList();
     refreshZoneList();
     refreshZoneMap();
+    refreshWorldZoneMap();
 
     const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
                               .arg(QString::fromStdString(path.string()))
@@ -623,7 +692,99 @@ void MainWindow::refreshZoneMap() {
     }
     map_floor_->setCurrentIndex(floor_index);
     map_view_->setActiveZLevel(map_floor_->currentData().toInt());
+    if (map_broken_only_) {
+        map_view_->setShowBrokenOnly(map_broken_only_->isChecked());
+    }
     updateMapStats();
+}
+
+void MainWindow::refreshWorldZoneMap() {
+    if (!world_map_view_) {
+        return;
+    }
+
+    const nebbie::WorldZoneGraph graph = nebbie::build_world_zone_graph(world_);
+    if (graph.zones.empty()) {
+        world_map_view_->clearGraph();
+        if (world_map_details_) {
+            world_map_details_->clear();
+        }
+        if (world_map_stats_) {
+            world_map_stats_->setText("Nessuna zona caricata.");
+        }
+        return;
+    }
+
+    world_map_view_->setGraph(graph);
+    if (world_map_broken_only_) {
+        world_map_view_->setShowBrokenOnly(world_map_broken_only_->isChecked());
+    }
+
+    int total_used = 0;
+    int total_free = 0;
+    int broken_edges = 0;
+    for (const auto& zone : graph.zones) {
+        total_used += zone.used_count;
+        total_free += zone.free_count;
+    }
+    for (const auto& edge : graph.edges) {
+        if (edge.broken_count > 0) {
+            ++broken_edges;
+        }
+    }
+
+    if (world_map_stats_) {
+        world_map_stats_->setText(
+            QString("Zone: %1 | collegamenti inter-zona: %2 | link rotti: %3 | vnum stanza usati: %4 | vnum liberi: %5")
+                .arg(graph.zones.size())
+                .arg(graph.edges.size())
+                .arg(broken_edges)
+                .arg(total_used)
+                .arg(total_free));
+    }
+}
+
+void MainWindow::updateWorldZoneDetails(int zone_num) {
+    if (!world_map_details_) {
+        return;
+    }
+
+    const nebbie::Zone* zone = nebbie::find_zone(world_, zone_num);
+    if (!zone) {
+        world_map_details_->setPlainText(QString("Zona #%1 non trovata.").arg(zone_num));
+        return;
+    }
+
+    const nebbie::WorldZoneNode node = nebbie::build_world_zone_node(world_, *zone);
+    QString used_text;
+    if (node.used_vnums.empty()) {
+        used_text = "(nessuna stanza nel range)";
+    } else if (node.used_vnums.size() <= 40) {
+        QStringList parts;
+        for (long vnum : node.used_vnums) {
+            parts << QString::number(vnum);
+        }
+        used_text = parts.join(", ");
+    } else {
+        used_text = QString("%1 … %2 (%3 vnum, elenco troncato)")
+                        .arg(node.used_vnums.front())
+                        .arg(node.used_vnums.back())
+                        .arg(node.used_count);
+    }
+
+    const QString details = QString("Zona #%1 %2\nRange vnum: %3-%4\n\nStanze usate (%5):\n%6\n\nVnum liberi (%7):\n%8")
+                                .arg(node.zone_num)
+                                .arg(QString::fromStdString(node.name))
+                                .arg(node.bottom)
+                                .arg(node.top)
+                                .arg(node.used_count)
+                                .arg(used_text)
+                                .arg(node.free_count)
+                                .arg(QString::fromStdString(nebbie::format_vnum_ranges(node.free_ranges, 20)));
+    world_map_details_->setPlainText(details);
+    if (world_map_view_) {
+        world_map_view_->setHighlightedZone(zone_num);
+    }
 }
 
 void MainWindow::updateMapStats() {

@@ -10,6 +10,8 @@ add_executable(nebbieedit
     main_window.hpp
     app_config.cpp
     app_config.hpp
+    world_zone_map_widget.cpp
+    world_zone_map_widget.hpp
     zone_map_widget.cpp
     zone_map_widget.hpp
     nebbieedit.qrc

@@ -216,6 +216,22 @@ void ZoneMapWidget::setActiveZLevel(int z) {
     rebuildScene();
 }
 
+void ZoneMapWidget::setShowBrokenOnly(bool enabled) {
+    if (show_broken_only_ == enabled) {
+        return;
+    }
+    show_broken_only_ = enabled;
+    rebuildScene();
+}
+
+void ZoneMapWidget::setHighlightedVnum(long vnum) {
+    if (highlighted_vnum_ == vnum) {
+        return;
+    }
+    highlighted_vnum_ = vnum;
+    rebuildScene();
+}
+
 int ZoneMapWidget::activeZLevel() const {
     return active_z_;
 }
@@ -252,7 +268,10 @@ void ZoneMapWidget::rebuildScene() {
 
         auto* node_item = new NodeItem;
         node_item->vnum = node.vnum;
-        node_item->rect = scene_->addRect(rect, QPen(QColor(55, 55, 55)), QBrush(QColor(245, 248, 252)));
+        const bool highlighted = highlighted_vnum_ == node.vnum;
+        const QPen node_pen(highlighted ? QColor(220, 120, 0) : QColor(55, 55, 55), highlighted ? 3.0 : 1.0);
+        const QBrush node_brush(highlighted ? QColor(255, 248, 220) : QColor(245, 248, 252));
+        node_item->rect = scene_->addRect(rect, node_pen, node_brush);
         node_item->rect->setZValue(2);
         node_item->rect->setData(kDataVnum, static_cast<qlonglong>(node.vnum));
 
@@ -272,6 +291,9 @@ void ZoneMapWidget::rebuildScene() {
         QStringList vertical_links;
         for (const auto& edge : graph_.edges) {
             if (edge.from_vnum != node.vnum || edge.to_vnum <= 0 || edge.direction < 4) {
+                continue;
+            }
+            if (show_broken_only_ && !edge.broken) {
                 continue;
             }
             const int target_z = level_of(z_layout_, edge.to_vnum, active_z_);
@@ -310,6 +332,9 @@ void ZoneMapWidget::rebuildScene() {
 
     for (const auto& edge : graph_.edges) {
         if (edge.to_vnum <= 0 || !is_horizontal_direction(edge.direction)) {
+            continue;
+        }
+        if (show_broken_only_ && !edge.broken) {
             continue;
         }
         if (level_of(z_layout_, edge.from_vnum) != active_z_ || level_of(z_layout_, edge.to_vnum) != active_z_) {

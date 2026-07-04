@@ -143,6 +143,112 @@ std::vector<int> sorted_z_levels(const ZoneZLayout& layout) {
     return levels;
 }
 
+WorldZoneNode build_world_zone_node(const World& world, const Zone& zone) {
+    WorldZoneNode node;
+    node.zone_num = zone.num;
+    node.name = zone.name;
+    node.bottom = zone.bottom;
+    node.top = zone.top;
+
+    for (long vnum = zone.bottom; vnum <= zone.top; ++vnum) {
+        if (world.find_room(vnum)) {
+            node.used_vnums.push_back(vnum);
+        }
+    }
+    node.used_count = static_cast<int>(node.used_vnums.size());
+
+    long range_start = -1;
+    for (long vnum = zone.bottom; vnum <= zone.top; ++vnum) {
+        if (!world.find_room(vnum)) {
+            if (range_start < 0) {
+                range_start = vnum;
+            }
+        } else if (range_start >= 0) {
+            node.free_ranges.push_back({range_start, vnum - 1});
+            range_start = -1;
+        }
+    }
+    if (range_start >= 0) {
+        node.free_ranges.push_back({range_start, zone.top});
+    }
+
+    node.free_count = 0;
+    for (const auto& range : node.free_ranges) {
+        node.free_count += static_cast<int>(range.end - range.start + 1);
+    }
+
+    return node;
+}
+
+WorldZoneGraph build_world_zone_graph(const World& world) {
+    WorldZoneGraph graph;
+    for (const auto& zone : world.zones) {
+        graph.zones.push_back(build_world_zone_node(world, zone));
+    }
+
+    std::map<std::pair<int, int>, WorldZoneEdge> edge_map;
+    for (const auto& [vnum, room] : world.rooms) {
+        const Zone* from_zone = world.zone_for_vnum(vnum);
+        if (!from_zone) {
+            continue;
+        }
+
+        for (const auto& exit : room.exits) {
+            if (exit.to_room <= 0) {
+                continue;
+            }
+
+            const Zone* to_zone = world.zone_for_vnum(exit.to_room);
+            if (!to_zone || to_zone->num == from_zone->num) {
+                continue;
+            }
+
+            const auto key = std::make_pair(from_zone->num, to_zone->num);
+            WorldZoneEdge& edge = edge_map[key];
+            if (edge.link_count == 0) {
+                edge.from_zone = from_zone->num;
+                edge.to_zone = to_zone->num;
+                edge.sample_from_vnum = vnum;
+                edge.sample_to_vnum = exit.to_room;
+            }
+
+            ++edge.link_count;
+            if (!world.find_room(exit.to_room)) {
+                ++edge.broken_count;
+            }
+        }
+    }
+
+    for (auto& [key, edge] : edge_map) {
+        (void)key;
+        graph.edges.push_back(std::move(edge));
+    }
+
+    return graph;
+}
+
+std::string format_vnum_ranges(const std::vector<VnumRange>& ranges, std::size_t max_ranges) {
+    if (ranges.empty()) {
+        return "(nessuno)";
+    }
+
+    std::ostringstream out;
+    for (std::size_t i = 0; i < ranges.size() && i < max_ranges; ++i) {
+        if (i > 0) {
+            out << ", ";
+        }
+        if (ranges[i].start == ranges[i].end) {
+            out << ranges[i].start;
+        } else {
+            out << ranges[i].start << '-' << ranges[i].end;
+        }
+    }
+    if (ranges.size() > max_ranges) {
+        out << ", ... (+" << (ranges.size() - max_ranges) << " intervalli)";
+    }
+    return out.str();
+}
+
 std::string zone_graph_to_dot(const ZoneGraph& graph) {
     std::ostringstream out;
     out << "digraph zone_" << graph.zone_num << " {\n";
@@ -164,6 +270,35 @@ std::string zone_graph_to_dot(const ZoneGraph& graph) {
             out << ", color=red, style=dashed";
         } else if (edge.direction >= 4) {
             out << ", style=dashed, color=blue";
+        }
+        out << "];\n";
+    }
+
+    out << "}\n";
+    return out.str();
+}
+
+std::string world_zone_graph_to_dot(const WorldZoneGraph& graph) {
+    std::ostringstream out;
+    out << "digraph world_zones {\n";
+    out << "  label=\"Collegamenti tra zone\";\n";
+    out << "  node [shape=box, style=rounded];\n";
+
+    for (const auto& zone : graph.zones) {
+        out << "  z" << zone.zone_num << " [label=\"#" << zone.zone_num << "\\n"
+            << zone.name << "\\n[" << zone.bottom << "-" << zone.top << "]\\n"
+            << "usati:" << zone.used_count << " liberi:" << zone.free_count << "\"];\n";
+    }
+
+    for (const auto& edge : graph.edges) {
+        out << "  z" << edge.from_zone << " -> z" << edge.to_zone;
+        out << " [label=\"" << edge.link_count << " link";
+        if (edge.broken_count > 0) {
+            out << ", " << edge.broken_count << " rotti";
+        }
+        out << "\"";
+        if (edge.broken_count > 0) {
+            out << ", color=red, style=dashed";
         }
         out << "];\n";
     }

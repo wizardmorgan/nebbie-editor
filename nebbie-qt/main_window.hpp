@@ -25,6 +25,8 @@ class QComboBox;
 class QPushButton;
 class QListWidgetItem;
 class ZoneMapWidget;
+class WorldZoneMapWidget;
+class QCheckBox;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -87,7 +89,9 @@ private:
     void refreshExitList(long room_vnum);
     void refreshZoneList();
     void refreshZoneMap();
+    void refreshWorldZoneMap();
     void updateMapStats();
+    void updateWorldZoneDetails(int zone_num);
     void refreshResetList(int zone_num);
     void updateResetFieldHints();
     void loadResetForm(const nebbie::ResetCommand& cmd);
@@ -170,6 +174,11 @@ private:
     QWidget* map_tab_ = nullptr;
     QComboBox* map_zone_ = nullptr;
     QComboBox* map_floor_ = nullptr;
+    QCheckBox* map_broken_only_ = nullptr;
     ZoneMapWidget* map_view_ = nullptr;
     QLabel* map_stats_ = nullptr;
+    WorldZoneMapWidget* world_map_view_ = nullptr;
+    QPlainTextEdit* world_map_details_ = nullptr;
+    QCheckBox* world_map_broken_only_ = nullptr;
+    QLabel* world_map_stats_ = nullptr;
 };

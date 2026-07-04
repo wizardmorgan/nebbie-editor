@@ -13,19 +13,27 @@
 - [x] **Prototipo mappa**: tab Mappa + `nebbiedit zone graph --dot`
 - [x] **Mappa interattiva (MVP)**: `QGraphicsView`, zoom/pan, doppio clic → stanza
 - [x] **Piani Z**: selettore livello, layout per piano, link su/giù cliccabili
+- [x] **Filtro link rotti** + evidenziazione stanza su cambio piano
+- [x] **Mappa mondo (zone)**: collegamenti inter-zona, vnum usati/liberi
 - [x] **Config libreria predefinita**: file testo `nebbieedit.conf` + dialogo al primo avvio
 
 ## Prossimo passo immediato
 
-**Mappa Fase 6d** — filtri link rotti, evidenziazione stanza selezionata, layout migliorato.
+**Mappa** — sincronizzazione zona↔mappa stanze; export immagine; layout zone migliorato.
 
 ## Fase 6 — Mappa zone
 
 ### Stato attuale (master)
 
-- Tab **Mappa**: grafo interattivo per **piano Z** (combo Piano Z)
-- Link **su/giù** sotto/sopra le stanze: clic → cambia piano
-- Doppio clic su stanza → tab Stanze
+**Sotto-tab Zona**
+- Grafo interattivo per piano Z; filtro *Solo link rotti*
+- Evidenziazione stanza su link su/giù; doppio clic → tab Stanze
+
+**Sotto-tab Mondo (zone)**
+- Nodi = zone (non stanze), archi = uscite che collegano zone diverse
+- Etichetta `U`/`L` = vnum usati / liberi nel range `[bottom-top]`
+- Pannello dettaglio: elenco vnum usati e intervalli liberi
+- Filtro link rotti; doppio clic → tab Zone
 - Pulsante **Esporta DOT** (appunti) per Graphviz
 - Archi su/giù: tratteggio viola (stesso piano per ora)
 
