@@ -13,6 +13,7 @@
 #include <QPen>
 #include <QWheelEvent>
 
+#include <algorithm>
 #include <map>
 #include <queue>
 #include <unordered_map>
@@ -20,11 +21,9 @@
 
 namespace {
 
-constexpr qreal kZoneBoxWidth = 172.0;
-constexpr qreal kZoneBoxHeight = 96.0;
-constexpr qreal kGridStepX = 240.0;
-constexpr qreal kGridStepY = 160.0;
-constexpr qreal kZonePadding = 8.0;
+constexpr qreal kZonePadding = 10.0;
+constexpr qreal kNodeMargin = 28.0;
+constexpr qreal kMinZoneBoxWidth = 168.0;
 constexpr int kDataZone = 0;
 
 struct GridPos {
@@ -39,17 +38,19 @@ struct GridPos {
     }
 };
 
+struct ZoneLayoutInfo {
+    int zone_num = 0;
+    QStringList lines;
+    QSizeF box_size;
+};
+
 QFont zone_label_font() {
     QFont font;
     font.setPointSize(9);
     return font;
 }
 
-qreal zone_line_height() {
-    return QFontMetrics(zone_label_font()).height();
-}
-
-QString truncate_zone_name(const std::string& name, int max_chars = 18) {
+QString truncate_zone_name(const std::string& name, int max_chars = 16) {
     QString qname = QString::fromStdString(name).trimmed();
     if (qname.size() <= max_chars) {
         return qname;
@@ -66,22 +67,97 @@ QStringList format_zone_lines(const nebbie::WorldZoneNode& zone) {
     };
 }
 
-void add_zone_line_labels(QGraphicsScene* scene,
-                          const QRectF& rect,
+ZoneLayoutInfo measure_zone_layout(const nebbie::WorldZoneNode& zone) {
+    ZoneLayoutInfo info;
+    info.zone_num = zone.zone_num;
+    info.lines = format_zone_lines(zone);
+
+    const QFont font = zone_label_font();
+    const QFontMetrics fm(font);
+    const qreal line_step = fm.lineSpacing() + 2.0;
+
+    qreal max_line_w = 0.0;
+    for (const QString& line : info.lines) {
+        max_line_w = qMax(max_line_w, static_cast<qreal>(fm.horizontalAdvance(line)));
+    }
+
+    const qreal box_w = qMax(kMinZoneBoxWidth, max_line_w + (2.0 * kZonePadding));
+    const qreal box_h = (2.0 * kZonePadding) + (info.lines.size() * line_step);
+    info.box_size = QSizeF(box_w, box_h);
+    return info;
+}
+
+QRectF rect_centered_at(const QPointF& center, const QSizeF& size) {
+    return QRectF(center.x() - size.width() / 2.0,
+                  center.y() - size.height() / 2.0,
+                  size.width(),
+                  size.height());
+}
+
+bool rects_overlap(const QRectF& a, const QRectF& b, qreal margin) {
+    return a.adjusted(-margin, -margin, margin, margin)
+        .intersects(b.adjusted(-margin, -margin, margin, margin));
+}
+
+void resolve_rect_overlaps(std::vector<QRectF>& rects, qreal margin) {
+    if (rects.size() < 2) {
+        return;
+    }
+
+    for (int pass = 0; pass < 200; ++pass) {
+        bool moved = false;
+        for (std::size_t i = 0; i < rects.size(); ++i) {
+            for (std::size_t j = i + 1; j < rects.size(); ++j) {
+                QRectF expanded_i = rects[i].adjusted(-margin, -margin, margin, margin);
+                QRectF expanded_j = rects[j].adjusted(-margin, -margin, margin, margin);
+                if (!expanded_i.intersects(expanded_j)) {
+                    continue;
+                }
+
+                const QRectF overlap = expanded_i.intersected(expanded_j);
+                const QPointF ci = rects[i].center();
+                const QPointF cj = rects[j].center();
+
+                if (overlap.width() <= overlap.height()) {
+                    const qreal shift = overlap.width() + 4.0;
+                    if (ci.x() <= cj.x()) {
+                        rects[j].translate(shift, 0.0);
+                    } else {
+                        rects[j].translate(-shift, 0.0);
+                    }
+                } else {
+                    const qreal shift = overlap.height() + 4.0;
+                    if (ci.y() <= cj.y()) {
+                        rects[j].translate(0.0, shift);
+                    } else {
+                        rects[j].translate(0.0, -shift);
+                    }
+                }
+                moved = true;
+            }
+        }
+        if (!moved) {
+            break;
+        }
+    }
+}
+
+void add_zone_line_labels(QGraphicsRectItem* box,
                           int zone_num,
                           const QStringList& lines) {
     const QFont font = zone_label_font();
-    const qreal line_h = zone_line_height();
-    qreal y = rect.y() + kZonePadding;
+    const QFontMetrics fm(font);
+    const qreal line_step = fm.lineSpacing() + 2.0;
+    qreal y = kZonePadding;
 
     for (const QString& line : lines) {
-        auto* item = scene->addSimpleText(line);
+        auto* item = new QGraphicsSimpleTextItem(line, box);
         item->setFont(font);
         item->setBrush(QColor(25, 25, 25));
-        item->setPos(rect.x() + kZonePadding, y);
-        item->setZValue(3);
+        item->setPos(kZonePadding, y);
+        item->setZValue(1);
         item->setData(kDataZone, zone_num);
-        y += line_h;
+        y += line_step;
     }
 }
 
@@ -109,7 +185,7 @@ std::map<int, GridPos> layout_zone_nodes(const nebbie::WorldZoneGraph& graph) {
         if (!occupied.count(desired)) {
             return desired;
         }
-        for (int radius = 1; radius < 32; ++radius) {
+        for (int radius = 1; radius < 48; ++radius) {
             for (int dx = -radius; dx <= radius; ++dx) {
                 for (int dy = -radius; dy <= radius; ++dy) {
                     const GridPos candidate{desired.x + dx, desired.y + dy};
@@ -149,7 +225,7 @@ std::map<int, GridPos> layout_zone_nodes(const nebbie::WorldZoneGraph& graph) {
         if (positions.count(zone.zone_num)) {
             continue;
         }
-        const GridPos isolated = find_free_cell({orphan++, 0});
+        const GridPos isolated = find_free_cell({0, orphan++});
         positions[zone.zone_num] = isolated;
         occupied[isolated] = zone.zone_num;
     }
@@ -208,18 +284,51 @@ void WorldZoneMapWidget::rebuildScene() {
         return;
     }
 
-    const auto positions = layout_zone_nodes(graph_);
-    std::unordered_map<int, QPointF> centers;
-
+    std::vector<ZoneLayoutInfo> layouts;
+    layouts.reserve(graph_.zones.size());
+    qreal max_box_w = kMinZoneBoxWidth;
+    qreal max_box_h = 0.0;
     for (const auto& zone : graph_.zones) {
-        const auto it = positions.find(zone.zone_num);
-        if (it == positions.end()) {
+        const ZoneLayoutInfo layout = measure_zone_layout(zone);
+        layouts.push_back(layout);
+        max_box_w = qMax(max_box_w, layout.box_size.width());
+        max_box_h = qMax(max_box_h, layout.box_size.height());
+    }
+
+    const qreal grid_step_x = max_box_w + kNodeMargin;
+    const qreal grid_step_y = max_box_h + kNodeMargin;
+    const auto positions = layout_zone_nodes(graph_);
+
+    std::vector<QRectF> node_rects;
+    node_rects.reserve(layouts.size());
+    std::unordered_map<int, std::size_t> layout_index_by_zone;
+
+    for (std::size_t i = 0; i < layouts.size(); ++i) {
+        const auto& layout = layouts[i];
+        layout_index_by_zone[layout.zone_num] = i;
+
+        const auto pos_it = positions.find(layout.zone_num);
+        if (pos_it == positions.end()) {
+            node_rects.push_back(QRectF());
             continue;
         }
 
-        const qreal px = it->second.x * kGridStepX;
-        const qreal py = it->second.y * kGridStepY;
-        const QRectF rect(px - kZoneBoxWidth / 2.0, py - kZoneBoxHeight / 2.0, kZoneBoxWidth, kZoneBoxHeight);
+        const QPointF center(pos_it->second.x * grid_step_x, pos_it->second.y * grid_step_y);
+        node_rects.push_back(rect_centered_at(center, layout.box_size));
+    }
+
+    resolve_rect_overlaps(node_rects, kNodeMargin / 2.0);
+
+    std::unordered_map<int, QPointF> centers;
+    for (const auto& zone : graph_.zones) {
+        const auto idx_it = layout_index_by_zone.find(zone.zone_num);
+        if (idx_it == layout_index_by_zone.end()) {
+            continue;
+        }
+        const QRectF& rect = node_rects[idx_it->second];
+        if (rect.isNull()) {
+            continue;
+        }
 
         auto* node_item = new ZoneNodeItem;
         node_item->zone_num = zone.zone_num;
@@ -229,8 +338,10 @@ void WorldZoneMapWidget::rebuildScene() {
         node_item->rect = scene_->addRect(rect, pen, brush);
         node_item->rect->setZValue(2);
         node_item->rect->setData(kDataZone, zone.zone_num);
+        node_item->rect->setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
 
-        add_zone_line_labels(scene_, rect, zone.zone_num, format_zone_lines(zone));
+        const ZoneLayoutInfo& layout = layouts[idx_it->second];
+        add_zone_line_labels(node_item->rect, zone.zone_num, layout.lines);
 
         const QString used_list = zone.used_vnums.empty()
             ? QStringLiteral("(nessuna stanza)")
