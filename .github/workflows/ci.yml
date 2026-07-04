@@ -78,5 +78,7 @@ jobs:
       - name: Nebbietest phase-4 roundtrip
         run: ctest --test-dir build -R nebbietest-phase4 --output-on-failure
 
-      - name: Build Qt GUI
-        run: test -x build/nebbie-qt/nebbieedit
+      - name: Build Qt GUI bundle with icon
+        run: |
+          test -x build/nebbie-qt/nebbieedit.app/Contents/MacOS/nebbieedit
+          test -f build/nebbie-qt/nebbieedit.app/Contents/Resources/nebbieedit.icns
