@@ -12,19 +12,22 @@
 - [x] Validazione GUI con navigazione al vnum
 - [x] **Prototipo mappa**: tab Mappa + `nebbiedit zone graph --dot`
 - [x] **Mappa interattiva (MVP)**: `QGraphicsView`, zoom/pan, doppio clic → stanza
+- [x] **Piani Z**: selettore livello, layout per piano, link su/giù cliccabili
 - [x] **Config libreria predefinita**: file testo `nebbieedit.conf` + dialogo al primo avvio
 
 ## Prossimo passo immediato
 
-**Mappa Fase 6c** — piani Z per su/giù, filtri link rotti, layout migliorato.
+**Mappa Fase 6d** — filtri link rotti, evidenziazione stanza selezionata, layout migliorato.
 
 ## Fase 6 — Mappa zone
 
 ### Stato attuale (master)
 
-- Tab **Mappa**: selezione zona, statistiche, export Graphviz DOT
-- API `build_zone_graph`, `zone_graph_to_dot`, `rooms_in_zone`
-- Archi su/giù come tratteggio blu nel DOT
+- Tab **Mappa**: grafo interattivo per **piano Z** (combo Piano Z)
+- Link **su/giù** sotto/sopra le stanze: clic → cambia piano
+- Doppio clic su stanza → tab Stanze
+- Pulsante **Esporta DOT** (appunti) per Graphviz
+- Archi su/giù: tratteggio viola (stesso piano per ora)
 
 ### Prossimo incremento
 

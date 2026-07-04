@@ -48,6 +48,14 @@ int main(int argc, char** argv) {
             if (dot.find("digraph") == std::string::npos) {
                 throw std::runtime_error("invalid dot output");
             }
+            const auto z_layout = nebbie::compute_zone_z_levels(graph);
+            if (z_layout.levels.empty()) {
+                throw std::runtime_error("expected z levels for zone graph");
+            }
+            const auto levels = nebbie::sorted_z_levels(z_layout);
+            if (levels.empty()) {
+                throw std::runtime_error("expected sorted z levels");
+            }
         }
 
         std::filesystem::remove_all(nebbie::session_root(lib));

@@ -273,13 +273,16 @@ void MainWindow::setupUi() {
 
     map_tab_ = new QWidget;
     auto* map_layout = new QVBoxLayout(map_tab_);
-    map_layout->addWidget(new QLabel("Mappa interattiva della zona. Trascina per spostare, rotella per zoom, doppio clic sulla stanza."));
+    map_layout->addWidget(new QLabel("Mappa interattiva. Piano Z: solo stanze del livello; clic su su/giù per cambiare piano."));
     auto* map_top = new QHBoxLayout;
     map_zone_ = new QComboBox;
+    map_floor_ = new QComboBox;
     auto* map_refresh = new QPushButton("Aggiorna mappa");
     auto* map_export_dot = new QPushButton("Esporta DOT");
     map_top->addWidget(new QLabel("Zona:"));
     map_top->addWidget(map_zone_, 1);
+    map_top->addWidget(new QLabel("Piano Z:"));
+    map_top->addWidget(map_floor_);
     map_top->addWidget(map_refresh);
     map_top->addWidget(map_export_dot);
     map_layout->addLayout(map_top);
@@ -345,10 +348,28 @@ void MainWindow::setupUi() {
     connect(validation_list_, &QListWidget::itemDoubleClicked, this, &MainWindow::onValidationIssueActivated);
     connect(map_refresh, &QPushButton::clicked, this, &MainWindow::refreshZoneMap);
     connect(map_zone_, &QComboBox::currentIndexChanged, this, [this](int) { refreshZoneMap(); });
+    connect(map_floor_, &QComboBox::currentIndexChanged, this, [this](int index) {
+        if (index < 0 || !map_view_) {
+            return;
+        }
+        map_view_->setActiveZLevel(map_floor_->currentData().toInt());
+        updateMapStats();
+    });
     connect(map_view_, &ZoneMapWidget::roomActivated, this, [this](long vnum) {
         tabs_->setCurrentIndex(0);
         selectRoomByVnum(vnum);
         setStatus(QString("Mappa: selezionata stanza #%1.").arg(vnum));
+    });
+    connect(map_view_, &ZoneMapWidget::floorLinkActivated, this, [this](long target_vnum, int target_z) {
+        const int index = map_floor_->findData(target_z);
+        if (index >= 0) {
+            map_floor_->setCurrentIndex(index);
+        } else {
+            map_view_->setActiveZLevel(target_z);
+        }
+        setStatus(QString("Mappa: piano Z=%1, stanza #%2 (clic per aprire in editor).")
+                      .arg(target_z)
+                      .arg(target_vnum));
     });
     connect(map_export_dot, &QPushButton::clicked, this, [this]() {
         if (map_zone_->count() == 0) {
@@ -582,6 +603,7 @@ void MainWindow::refreshZoneMap() {
     const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
     if (graph.nodes.empty()) {
         map_view_->clearGraph();
+        map_floor_->clear();
         if (map_stats_) {
             map_stats_->setText("Nessuna stanza in questa zona.");
         }
@@ -590,8 +612,43 @@ void MainWindow::refreshZoneMap() {
 
     map_view_->setGraph(graph);
 
+    const int previous_floor = map_floor_->currentData().toInt();
+    map_floor_->clear();
+    for (int level : map_view_->availableZLevels()) {
+        map_floor_->addItem(QString("Z = %1").arg(level), level);
+    }
+    int floor_index = map_floor_->findData(previous_floor);
+    if (floor_index < 0) {
+        floor_index = 0;
+    }
+    map_floor_->setCurrentIndex(floor_index);
+    map_view_->setActiveZLevel(map_floor_->currentData().toInt());
+    updateMapStats();
+}
+
+void MainWindow::updateMapStats() {
+    if (!map_stats_ || map_zone_->count() == 0) {
+        return;
+    }
+
+    const int zone_num = map_zone_->currentData().toInt();
+    const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
+    if (graph.nodes.empty()) {
+        return;
+    }
+
+    const nebbie::ZoneZLayout z_layout = nebbie::compute_zone_z_levels(graph);
+    const int active_z = map_view_ ? map_view_->activeZLevel() : 0;
+
+    std::size_t on_floor = 0;
     std::size_t broken = 0;
     std::size_t vertical = 0;
+    for (const auto& node : graph.nodes) {
+        const auto it = z_layout.levels.find(node.vnum);
+        if (it != z_layout.levels.end() && it->second == active_z) {
+            ++on_floor;
+        }
+    }
     for (const auto& edge : graph.edges) {
         if (edge.broken) {
             ++broken;
@@ -601,17 +658,17 @@ void MainWindow::refreshZoneMap() {
         }
     }
 
-    if (map_stats_) {
-        map_stats_->setText(QString("Zona %1 %2 [%3-%4] — stanze: %5, archi: %6, su/giù: %7, rotti: %8")
-                              .arg(graph.zone_num)
-                              .arg(QString::fromStdString(graph.zone_name))
-                              .arg(graph.bottom)
-                              .arg(graph.top)
-                              .arg(graph.nodes.size())
-                              .arg(graph.edges.size())
-                              .arg(vertical)
-                              .arg(broken));
-    }
+    map_stats_->setText(QString("Zona %1 %2 [%3-%4] — piano Z=%5: %6 stanze | totali: %7 | archi: %8 | su/giù: %9 | rotti: %10")
+                            .arg(graph.zone_num)
+                            .arg(QString::fromStdString(graph.zone_name))
+                            .arg(graph.bottom)
+                            .arg(graph.top)
+                            .arg(active_z)
+                            .arg(on_floor)
+                            .arg(graph.nodes.size())
+                            .arg(graph.edges.size())
+                            .arg(vertical)
+                            .arg(broken));
 }
 
 void MainWindow::refreshResetList(const int zone_num) {

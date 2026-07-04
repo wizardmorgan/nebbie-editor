@@ -87,6 +87,7 @@ private:
     void refreshExitList(long room_vnum);
     void refreshZoneList();
     void refreshZoneMap();
+    void updateMapStats();
     void refreshResetList(int zone_num);
     void updateResetFieldHints();
     void loadResetForm(const nebbie::ResetCommand& cmd);
@@ -168,6 +169,7 @@ private:
     QWidget* zone_tab_ = nullptr;
     QWidget* map_tab_ = nullptr;
     QComboBox* map_zone_ = nullptr;
+    QComboBox* map_floor_ = nullptr;
     ZoneMapWidget* map_view_ = nullptr;
     QLabel* map_stats_ = nullptr;
 };

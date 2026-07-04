@@ -2,6 +2,7 @@
 
 #include "world.hpp"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -29,8 +30,16 @@ struct ZoneGraph {
     std::vector<ZoneGraphEdge> edges;
 };
 
+struct ZoneZLayout {
+    std::map<long, int> levels;
+    int min_level = 0;
+    int max_level = 0;
+};
+
 std::vector<long> rooms_in_zone(const World& world, int zone_num);
 ZoneGraph build_zone_graph(const World& world, int zone_num);
+ZoneZLayout compute_zone_z_levels(const ZoneGraph& graph);
+std::vector<int> sorted_z_levels(const ZoneZLayout& layout);
 std::string zone_graph_to_dot(const ZoneGraph& graph);
 
 } // namespace nebbie

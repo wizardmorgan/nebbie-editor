@@ -5,6 +5,7 @@
 #include <QGraphicsView>
 
 class QGraphicsScene;
+class QMouseEvent;
 class QWheelEvent;
 
 class ZoneMapWidget : public QGraphicsView {
@@ -15,21 +16,31 @@ public:
 
     void setGraph(const nebbie::ZoneGraph& graph);
     void clearGraph();
+    void setActiveZLevel(int z);
+    int activeZLevel() const;
+    std::vector<int> availableZLevels() const;
 
 signals:
     void roomActivated(long vnum);
+    void floorLinkActivated(long target_vnum, int target_z);
 
 protected:
+    void mousePressEvent(QMouseEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
 
 private:
     struct NodeItem;
+    struct VerticalBadge;
 
-    void rebuildScene(const nebbie::ZoneGraph& graph);
+    void rebuildScene();
     long vnumAt(const QPointF& scene_pos) const;
+    bool verticalBadgeAt(const QPointF& scene_pos, long& target_vnum, int& target_z) const;
 
     QGraphicsScene* scene_ = nullptr;
     nebbie::ZoneGraph graph_;
+    nebbie::ZoneZLayout z_layout_;
+    int active_z_ = 0;
     QHash<long, NodeItem*> nodes_by_vnum_;
+    QList<VerticalBadge*> vertical_badges_;
 };

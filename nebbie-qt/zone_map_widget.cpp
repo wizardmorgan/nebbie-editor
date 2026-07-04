@@ -3,26 +3,29 @@
 #include "nebbie/edit.hpp"
 
 #include <QBrush>
+#include <QFont>
 #include <QGraphicsLineItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsSimpleTextItem>
 #include <QMouseEvent>
 #include <QPen>
-#include <QToolTip>
 #include <QWheelEvent>
 
-#include <cmath>
 #include <map>
 #include <queue>
 #include <unordered_map>
-#include <vector>
 
 namespace {
 
 constexpr qreal kNodeWidth = 96.0;
 constexpr qreal kNodeHeight = 44.0;
 constexpr qreal kGridStep = 130.0;
+
+constexpr int kDataVnum = 0;
+constexpr int kDataVerticalLink = 1;
+constexpr int kDataTargetVnum = 2;
+constexpr int kDataTargetZ = 3;
 
 struct GridPos {
     int x = 0;
@@ -55,15 +58,30 @@ bool is_horizontal_direction(int direction) {
     return direction >= 0 && direction <= 3;
 }
 
-std::map<long, GridPos> layout_horizontal_nodes(const nebbie::ZoneGraph& graph) {
+int level_of(const nebbie::ZoneZLayout& layout, long vnum, int fallback = 0) {
+    const auto it = layout.levels.find(vnum);
+    return it == layout.levels.end() ? fallback : it->second;
+}
+
+std::map<long, GridPos> layout_horizontal_nodes(const nebbie::ZoneGraph& graph,
+                                                const nebbie::ZoneZLayout& z_layout,
+                                                int active_z) {
     std::map<long, GridPos> positions;
     if (graph.nodes.empty()) {
         return positions;
     }
 
-    long seed = graph.nodes.front().vnum;
+    long seed = -1;
     for (const auto& node : graph.nodes) {
-        seed = std::min(seed, node.vnum);
+        if (level_of(z_layout, node.vnum) != active_z) {
+            continue;
+        }
+        if (seed < 0 || node.vnum < seed) {
+            seed = node.vnum;
+        }
+    }
+    if (seed < 0) {
+        return positions;
     }
 
     std::map<GridPos, long> occupied;
@@ -101,6 +119,10 @@ std::map<long, GridPos> layout_horizontal_nodes(const nebbie::ZoneGraph& graph) 
             if (edge.from_vnum != from_vnum || edge.to_vnum <= 0 || !is_horizontal_direction(edge.direction)) {
                 continue;
             }
+            if (level_of(z_layout, edge.from_vnum) != active_z
+                || level_of(z_layout, edge.to_vnum) != active_z) {
+                continue;
+            }
             if (seen[edge.to_vnum]) {
                 continue;
             }
@@ -116,12 +138,14 @@ std::map<long, GridPos> layout_horizontal_nodes(const nebbie::ZoneGraph& graph) 
         }
     }
 
+    int orphan = 0;
     for (const auto& node : graph.nodes) {
-        if (!positions.count(node.vnum)) {
-            const GridPos isolated = find_free_cell({static_cast<int>(positions.size()), 0});
-            positions[node.vnum] = isolated;
-            occupied[isolated] = node.vnum;
+        if (level_of(z_layout, node.vnum) != active_z || positions.count(node.vnum)) {
+            continue;
         }
+        const GridPos isolated = find_free_cell({orphan++, 0});
+        positions[node.vnum] = isolated;
+        occupied[isolated] = node.vnum;
     }
 
     return positions;
@@ -153,6 +177,12 @@ struct ZoneMapWidget::NodeItem {
     long vnum = 0;
 };
 
+struct ZoneMapWidget::VerticalBadge {
+    QGraphicsSimpleTextItem* item = nullptr;
+    long target_vnum = 0;
+    int target_z = 0;
+};
+
 ZoneMapWidget::ZoneMapWidget(QWidget* parent) : QGraphicsView(parent) {
     scene_ = new QGraphicsScene(this);
     setScene(scene_);
@@ -164,27 +194,53 @@ ZoneMapWidget::ZoneMapWidget(QWidget* parent) : QGraphicsView(parent) {
 
 void ZoneMapWidget::clearGraph() {
     graph_ = {};
+    z_layout_ = {};
+    active_z_ = 0;
     nodes_by_vnum_.clear();
+    vertical_badges_.clear();
     scene_->clear();
 }
 
 void ZoneMapWidget::setGraph(const nebbie::ZoneGraph& graph) {
     graph_ = graph;
-    rebuildScene(graph_);
+    z_layout_ = nebbie::compute_zone_z_levels(graph_);
+    active_z_ = 0;
+    rebuildScene();
 }
 
-void ZoneMapWidget::rebuildScene(const nebbie::ZoneGraph& graph) {
+void ZoneMapWidget::setActiveZLevel(int z) {
+    if (active_z_ == z) {
+        return;
+    }
+    active_z_ = z;
+    rebuildScene();
+}
+
+int ZoneMapWidget::activeZLevel() const {
+    return active_z_;
+}
+
+std::vector<int> ZoneMapWidget::availableZLevels() const {
+    return nebbie::sorted_z_levels(z_layout_);
+}
+
+void ZoneMapWidget::rebuildScene() {
     nodes_by_vnum_.clear();
+    vertical_badges_.clear();
     scene_->clear();
 
-    if (graph.nodes.empty()) {
+    if (graph_.nodes.empty()) {
         return;
     }
 
-    const auto positions = layout_horizontal_nodes(graph);
+    const auto positions = layout_horizontal_nodes(graph_, z_layout_, active_z_);
     std::unordered_map<long, QPointF> centers;
 
-    for (const auto& node : graph.nodes) {
+    for (const auto& node : graph_.nodes) {
+        if (level_of(z_layout_, node.vnum) != active_z_) {
+            continue;
+        }
+
         const auto it = positions.find(node.vnum);
         if (it == positions.end()) {
             continue;
@@ -198,26 +254,65 @@ void ZoneMapWidget::rebuildScene(const nebbie::ZoneGraph& graph) {
         node_item->vnum = node.vnum;
         node_item->rect = scene_->addRect(rect, QPen(QColor(55, 55, 55)), QBrush(QColor(245, 248, 252)));
         node_item->rect->setZValue(2);
-        node_item->rect->setData(0, static_cast<qlonglong>(node.vnum));
+        node_item->rect->setData(kDataVnum, static_cast<qlonglong>(node.vnum));
 
         const QString title = QString("#%1").arg(node.vnum);
         const QString subtitle = QString::fromStdString(node.name);
-        node_item->label = scene_->addSimpleText(title + "\n" + subtitle.left(18));
+        node_item->label = scene_->addSimpleText(title + "\n" + subtitle.left(16));
         node_item->label->setPos(rect.x() + 6, rect.y() + 4);
         node_item->label->setZValue(3);
+        node_item->label->setData(kDataVnum, static_cast<qlonglong>(node.vnum));
 
-        const QString tip = QString("#%1 %2\nSettore %3")
-                                .arg(node.vnum)
-                                .arg(QString::fromStdString(node.name))
-                                .arg(node.sector_type);
+        QString tip = QString("#%1 %2\nSettore %3\nPiano Z=%4")
+                          .arg(node.vnum)
+                          .arg(QString::fromStdString(node.name))
+                          .arg(node.sector_type)
+                          .arg(active_z_);
+
+        QStringList vertical_links;
+        for (const auto& edge : graph_.edges) {
+            if (edge.from_vnum != node.vnum || edge.to_vnum <= 0 || edge.direction < 4) {
+                continue;
+            }
+            const int target_z = level_of(z_layout_, edge.to_vnum, active_z_);
+            const char* dir = nebbie::exit_direction_name(edge.direction);
+            vertical_links << QString("%1 → #%2 (Z=%3)").arg(QString::fromUtf8(dir)).arg(edge.to_vnum).arg(target_z);
+
+            auto* badge = new VerticalBadge;
+            badge->target_vnum = edge.to_vnum;
+            badge->target_z = target_z;
+            const QString badge_text = QString::fromUtf8(dir) + QString(" #%1").arg(edge.to_vnum);
+            badge->item = scene_->addSimpleText(badge_text);
+            QFont font = badge->item->font();
+            font.setPointSizeF(font.pointSizeF() * 0.85);
+            font.setUnderline(true);
+            badge->item->setFont(font);
+            badge->item->setBrush(direction_color(edge.direction));
+            badge->item->setZValue(5);
+            badge->item->setData(kDataVerticalLink, 1);
+            badge->item->setData(kDataTargetVnum, static_cast<qlonglong>(edge.to_vnum));
+            badge->item->setData(kDataTargetZ, target_z);
+            badge->item->setToolTip(QString("Vai al piano Z=%1, stanza #%2").arg(target_z).arg(edge.to_vnum));
+
+            const qreal badge_y = edge.direction == 4 ? rect.top() - 18 : rect.bottom() + 2;
+            badge->item->setPos(rect.center().x() - 28, badge_y);
+            vertical_badges_.push_back(badge);
+        }
+
+        if (!vertical_links.isEmpty()) {
+            tip += "\n\nCollegamenti verticali:\n" + vertical_links.join("\n");
+        }
         node_item->rect->setToolTip(tip);
 
         nodes_by_vnum_.insert(node.vnum, node_item);
         centers[node.vnum] = rect.center();
     }
 
-    for (const auto& edge : graph.edges) {
-        if (edge.to_vnum <= 0) {
+    for (const auto& edge : graph_.edges) {
+        if (edge.to_vnum <= 0 || !is_horizontal_direction(edge.direction)) {
+            continue;
+        }
+        if (level_of(z_layout_, edge.from_vnum) != active_z_ || level_of(z_layout_, edge.to_vnum) != active_z_) {
             continue;
         }
 
@@ -231,8 +326,6 @@ void ZoneMapWidget::rebuildScene(const nebbie::ZoneGraph& graph) {
         if (edge.broken) {
             pen.setStyle(Qt::DashLine);
             pen.setColor(Qt::red);
-        } else if (!is_horizontal_direction(edge.direction)) {
-            pen.setStyle(Qt::DashLine);
         }
 
         auto* line = scene_->addLine(QLineF(from_it->second, to_it->second), pen);
@@ -245,18 +338,49 @@ void ZoneMapWidget::rebuildScene(const nebbie::ZoneGraph& graph) {
         dir_label->setZValue(4);
     }
 
+    auto* floor_label = scene_->addSimpleText(QString("Piano Z = %1").arg(active_z_));
+    QFont floor_font = floor_label->font();
+    floor_font.setBold(true);
+    floor_label->setFont(floor_font);
+    floor_label->setZValue(10);
+    floor_label->setPos(scene_->itemsBoundingRect().topLeft() + QPointF(0, -30));
+
     scene_->setSceneRect(scene_->itemsBoundingRect().adjusted(-80, -80, 80, 80));
 }
 
 long ZoneMapWidget::vnumAt(const QPointF& scene_pos) const {
     const auto items = scene_->items(scene_pos);
     for (QGraphicsItem* item : items) {
-        const QVariant data = item->data(0);
+        const QVariant data = item->data(kDataVnum);
         if (data.isValid()) {
             return data.toLongLong();
         }
     }
     return -1;
+}
+
+bool ZoneMapWidget::verticalBadgeAt(const QPointF& scene_pos, long& target_vnum, int& target_z) const {
+    const auto items = scene_->items(scene_pos);
+    for (QGraphicsItem* item : items) {
+        if (!item->data(kDataVerticalLink).toInt()) {
+            continue;
+        }
+        target_vnum = item->data(kDataTargetVnum).toLongLong();
+        target_z = item->data(kDataTargetZ).toInt();
+        return target_vnum > 0;
+    }
+    return false;
+}
+
+void ZoneMapWidget::mousePressEvent(QMouseEvent* event) {
+    long target_vnum = 0;
+    int target_z = 0;
+    if (verticalBadgeAt(mapToScene(event->pos()), target_vnum, target_z)) {
+        emit floorLinkActivated(target_vnum, target_z);
+        event->accept();
+        return;
+    }
+    QGraphicsView::mousePressEvent(event);
 }
 
 void ZoneMapWidget::mouseDoubleClickEvent(QMouseEvent* event) {
