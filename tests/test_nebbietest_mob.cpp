@@ -110,6 +110,15 @@ int main(int argc, char** argv) {
             }
         }
 
+        const auto spe_fixture = std::filesystem::path("tests/fixtures/myst.spe");
+        if (std::filesystem::exists(spe_fixture)) {
+            nebbie::World spe_world;
+            nebbie::load_myst_spe(spe_world, spe_fixture);
+            if (spe_world.special_procs.size() != 2) {
+                throw std::runtime_error("fixture myst.spe with !* comment did not load");
+            }
+        }
+
         const nebbie::Mobile* vendor_ron = world.find_mobile(1717);
         if (vendor_ron && vendor_ron->mobtype == 'L') {
             if (vendor_ron->sounds.find("Compai") == std::string::npos

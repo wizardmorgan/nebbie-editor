@@ -44,8 +44,16 @@ bool is_special_type(char c) {
     return c == 'm' || c == 'o' || c == 'r';
 }
 
+bool is_special_proc_comment_line(const std::string& line) {
+    if (line.empty()) {
+        return true;
+    }
+    const char first = line[0];
+    return first == '*' || first == '!' || first == '#';
+}
+
 SpecialProc parse_special_line(const std::string& line) {
-    if (line.empty() || line[0] == '*') {
+    if (is_special_proc_comment_line(line)) {
         return {};
     }
     if (line == "$" || (line.size() == 1 && line[0] == '$')) {
@@ -98,7 +106,7 @@ void load_myst_spe(World& world, const std::filesystem::path& path, ProgressCall
 
         std::string trimmed = line;
         trim(trimmed);
-        if (trimmed.empty() || trimmed[0] == '*') {
+        if (is_special_proc_comment_line(trimmed)) {
             continue;
         }
 
