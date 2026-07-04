@@ -22,7 +22,7 @@
 namespace {
 
 constexpr qreal kZonePadding = 10.0;
-constexpr qreal kNodeMargin = 28.0;
+constexpr qreal kNodeMargin = 48.0;
 constexpr qreal kMinZoneBoxWidth = 168.0;
 constexpr int kDataZone = 0;
 
@@ -67,7 +67,11 @@ QStringList format_zone_lines(const nebbie::WorldZoneNode& zone) {
     };
 }
 
-ZoneLayoutInfo measure_zone_layout(const nebbie::WorldZoneNode& zone) {
+QString elide_line(const QFontMetrics& fm, const QString& line, qreal max_width) {
+    return fm.elidedText(line, Qt::ElideRight, static_cast<int>(max_width));
+}
+
+ZoneLayoutInfo measure_zone_layout(const nebbie::WorldZoneNode& zone, qreal uniform_inner_width) {
     ZoneLayoutInfo info;
     info.zone_num = zone.zone_num;
     info.lines = format_zone_lines(zone);
@@ -76,12 +80,11 @@ ZoneLayoutInfo measure_zone_layout(const nebbie::WorldZoneNode& zone) {
     const QFontMetrics fm(font);
     const qreal line_step = fm.lineSpacing() + 2.0;
 
-    qreal max_line_w = 0.0;
-    for (const QString& line : info.lines) {
-        max_line_w = qMax(max_line_w, static_cast<qreal>(fm.horizontalAdvance(line)));
+    for (QString& line : info.lines) {
+        line = elide_line(fm, line, uniform_inner_width);
     }
 
-    const qreal box_w = qMax(kMinZoneBoxWidth, max_line_w + (2.0 * kZonePadding));
+    const qreal box_w = uniform_inner_width + (2.0 * kZonePadding);
     const qreal box_h = (2.0 * kZonePadding) + (info.lines.size() * line_step);
     info.box_size = QSizeF(box_w, box_h);
     return info;
@@ -94,9 +97,45 @@ QRectF rect_centered_at(const QPointF& center, const QSizeF& size) {
                   size.height());
 }
 
-bool rects_overlap(const QRectF& a, const QRectF& b, qreal margin) {
-    return a.adjusted(-margin, -margin, margin, margin)
-        .intersects(b.adjusted(-margin, -margin, margin, margin));
+bool separate_rect_pair(QRectF& a, QRectF& b, qreal margin) {
+    const QRectF expanded_a = a.adjusted(-margin, -margin, margin, margin);
+    const QRectF expanded_b = b.adjusted(-margin, -margin, margin, margin);
+    if (!expanded_a.intersects(expanded_b)) {
+        return false;
+    }
+
+    const qreal overlap_left = expanded_b.right() - expanded_a.left();
+    const qreal overlap_right = expanded_a.right() - expanded_b.left();
+    const qreal overlap_top = expanded_b.bottom() - expanded_a.top();
+    const qreal overlap_bottom = expanded_a.bottom() - expanded_b.top();
+
+    const qreal overlap_x = qMin(overlap_left, overlap_right);
+    const qreal overlap_y = qMin(overlap_top, overlap_bottom);
+
+    if (overlap_x <= 0.0 || overlap_y <= 0.0) {
+        return false;
+    }
+
+    if (overlap_x <= overlap_y) {
+        const qreal shift = overlap_x + 2.0;
+        if (a.center().x() <= b.center().x()) {
+            a.translate(-shift / 2.0, 0.0);
+            b.translate(shift / 2.0, 0.0);
+        } else {
+            a.translate(shift / 2.0, 0.0);
+            b.translate(-shift / 2.0, 0.0);
+        }
+    } else {
+        const qreal shift = overlap_y + 2.0;
+        if (a.center().y() <= b.center().y()) {
+            a.translate(0.0, -shift / 2.0);
+            b.translate(0.0, shift / 2.0);
+        } else {
+            a.translate(0.0, shift / 2.0);
+            b.translate(0.0, -shift / 2.0);
+        }
+    }
+    return true;
 }
 
 void resolve_rect_overlaps(std::vector<QRectF>& rects, qreal margin) {
@@ -104,36 +143,19 @@ void resolve_rect_overlaps(std::vector<QRectF>& rects, qreal margin) {
         return;
     }
 
-    for (int pass = 0; pass < 200; ++pass) {
+    for (int pass = 0; pass < 400; ++pass) {
         bool moved = false;
         for (std::size_t i = 0; i < rects.size(); ++i) {
+            if (rects[i].isNull()) {
+                continue;
+            }
             for (std::size_t j = i + 1; j < rects.size(); ++j) {
-                QRectF expanded_i = rects[i].adjusted(-margin, -margin, margin, margin);
-                QRectF expanded_j = rects[j].adjusted(-margin, -margin, margin, margin);
-                if (!expanded_i.intersects(expanded_j)) {
+                if (rects[j].isNull()) {
                     continue;
                 }
-
-                const QRectF overlap = expanded_i.intersected(expanded_j);
-                const QPointF ci = rects[i].center();
-                const QPointF cj = rects[j].center();
-
-                if (overlap.width() <= overlap.height()) {
-                    const qreal shift = overlap.width() + 4.0;
-                    if (ci.x() <= cj.x()) {
-                        rects[j].translate(shift, 0.0);
-                    } else {
-                        rects[j].translate(-shift, 0.0);
-                    }
-                } else {
-                    const qreal shift = overlap.height() + 4.0;
-                    if (ci.y() <= cj.y()) {
-                        rects[j].translate(0.0, shift);
-                    } else {
-                        rects[j].translate(0.0, -shift);
-                    }
+                if (separate_rect_pair(rects[i], rects[j], margin)) {
+                    moved = true;
                 }
-                moved = true;
             }
         }
         if (!moved) {
@@ -212,7 +234,7 @@ std::map<int, GridPos> layout_zone_nodes(const nebbie::WorldZoneGraph& graph) {
                 continue;
             }
 
-            GridPos target{from_pos.x + 1, from_pos.y};
+            GridPos target{from_pos.x + 2, from_pos.y};
             target = find_free_cell(target);
             seen[edge.to_zone] = true;
             positions[edge.to_zone] = target;
@@ -287,17 +309,27 @@ void WorldZoneMapWidget::rebuildScene() {
 
     std::vector<ZoneLayoutInfo> layouts;
     layouts.reserve(graph_.zones.size());
-    qreal max_box_w = kMinZoneBoxWidth;
+
+    const QFontMetrics fm(zone_label_font());
+    qreal max_line_w = kMinZoneBoxWidth - (2.0 * kZonePadding);
+    for (const auto& zone : graph_.zones) {
+        const QStringList raw_lines = format_zone_lines(zone);
+        for (const QString& line : raw_lines) {
+            max_line_w = qMax(max_line_w, static_cast<qreal>(fm.horizontalAdvance(line)));
+        }
+    }
+
     qreal max_box_h = 0.0;
     for (const auto& zone : graph_.zones) {
-        const ZoneLayoutInfo layout = measure_zone_layout(zone);
+        const ZoneLayoutInfo layout = measure_zone_layout(zone, max_line_w);
         layouts.push_back(layout);
-        max_box_w = qMax(max_box_w, layout.box_size.width());
         max_box_h = qMax(max_box_h, layout.box_size.height());
     }
 
-    const qreal grid_step_x = max_box_w + kNodeMargin;
-    const qreal grid_step_y = max_box_h + kNodeMargin;
+    const qreal uniform_box_w = max_line_w + (2.0 * kZonePadding);
+    const qreal uniform_box_h = max_box_h;
+    const qreal grid_step_x = uniform_box_w + kNodeMargin;
+    const qreal grid_step_y = uniform_box_h + kNodeMargin;
     const auto positions = layout_zone_nodes(graph_);
 
     std::vector<QRectF> node_rects;
@@ -315,10 +347,10 @@ void WorldZoneMapWidget::rebuildScene() {
         }
 
         const QPointF center(pos_it->second.x * grid_step_x, pos_it->second.y * grid_step_y);
-        node_rects.push_back(rect_centered_at(center, layout.box_size));
+        node_rects.push_back(rect_centered_at(center, QSizeF(uniform_box_w, uniform_box_h)));
     }
 
-    resolve_rect_overlaps(node_rects, kNodeMargin / 2.0);
+    resolve_rect_overlaps(node_rects, kNodeMargin);
 
     std::unordered_map<int, QPointF> centers;
     for (const auto& zone : graph_.zones) {
