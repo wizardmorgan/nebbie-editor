@@ -429,6 +429,11 @@ void load_myst_mob(World& world, const std::filesystem::path& path, ProgressCall
             throw ParseError(message);
         }
 
+        if (!fread_peek_is_number(fp)) {
+            fread_to_eol(fp);
+            continue;
+        }
+
         Mobile mob;
         try {
             mob.vnum = fread_number(fp);

@@ -112,6 +112,28 @@ long fread_if_number(FILE* fp) {
     return fread_number(fp);
 }
 
+bool fread_peek_is_number(FILE* fp) {
+    const long pos = std::ftell(fp);
+    int c = std::fgetc(fp);
+    while (c != EOF && is_space(c)) {
+        c = std::fgetc(fp);
+    }
+
+    bool is_number = false;
+    if (c == '+' || c == '-') {
+        const int next = std::fgetc(fp);
+        is_number = std::isdigit(next);
+        if (next != EOF) {
+            std::ungetc(next, fp);
+        }
+    } else if (std::isdigit(c)) {
+        is_number = true;
+    }
+
+    std::fseek(fp, pos, SEEK_SET);
+    return is_number;
+}
+
 std::string fread_word(FILE* fp) {
     std::string word;
     int c;

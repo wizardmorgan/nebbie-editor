@@ -159,6 +159,11 @@ void load_myst_obj(World& world, const std::filesystem::path& path, ProgressCall
             throw ParseError("Expected # in myst.obj");
         }
 
+        if (!fread_peek_is_number(fp)) {
+            fread_to_eol(fp);
+            continue;
+        }
+
         GameObject obj;
         obj.vnum = fread_number(fp);
         if (obj.vnum >= 99999) {

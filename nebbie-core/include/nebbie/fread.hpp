@@ -22,6 +22,7 @@ std::string fread_line(FILE* fp);
 std::string fread_action(FILE* fp);
 std::string fread_social_field(FILE* fp);
 void skip_optional_blank_line(FILE* fp);
+bool fread_peek_is_number(FILE* fp);
 std::vector<long> parse_numbers(const std::string& line);
 
 } // namespace nebbie

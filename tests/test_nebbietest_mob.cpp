@@ -81,6 +81,15 @@ int main(int argc, char** argv) {
             }
         }
 
+        const auto fixture = std::filesystem::path("tests/fixtures/myst.mob");
+        if (std::filesystem::exists(fixture)) {
+            nebbie::World fixture_world;
+            nebbie::load_myst_mob(fixture_world, fixture);
+            if (fixture_world.mobiles.size() != 5 || !fixture_world.find_mobile(2111)) {
+                throw std::runtime_error("fixture myst.mob with # comment line did not load");
+            }
+        }
+
         const nebbie::Mobile* vendor_ron = world.find_mobile(1717);
         if (vendor_ron && vendor_ron->mobtype == 'L') {
             if (vendor_ron->sounds.find("Compai") == std::string::npos
