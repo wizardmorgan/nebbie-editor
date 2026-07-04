@@ -31,6 +31,8 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     void openLibPath(const QString& path);
+    void openStartupLib();
+    bool promptForLibPath(const QString& reason = {});
 
 public slots:
     void openLib();
@@ -77,6 +79,7 @@ private:
     void setupUi();
     void setupMenus();
     void loadLib(const std::filesystem::path& path);
+    void rememberLibPath(const std::filesystem::path& path);
     void refreshRoomList();
     void refreshMobList();
     void refreshObjectList();

@@ -43,10 +43,12 @@ Oppure senza bundle:
 ### Linux (dettaglio)
 
 ```bash
-sudo apt-get update
 sudo apt-get install -y build-essential cmake qt6-base-dev
 ./scripts/build.sh --test
+./scripts/install-linux.sh /usr/local   # oppure ~/.local
 ```
+
+Config libreria predefinita (GUI): `~/.config/Nebbie/nebbieedit.conf`
 
 ## Regole di sviluppo
 
@@ -77,7 +79,16 @@ export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
 
 ### macOS: `nebbieedit` non si apre da Finder
 
-Usa `./scripts/build.sh --macos-bundle` e poi `open build/nebbie-qt/nebbieedit.app`.
+Usa `./scripts/build.sh --macos-bundle` e poi:
+
+```bash
+./scripts/install-macos.sh    # copia in /Applications
+open /Applications/nebbieedit.app
+```
+
+Al primo avvio (senza argomenti) l'app chiede la cartella `mudroot/lib` e la salva in:
+
+`~/Library/Application Support/Nebbie/nebbieedit.conf`
 
 L'icona dell'app è in `nebbie-qt/icons/` (`nebbieedit.icns`). Per rigenerarla da sorgente:
 

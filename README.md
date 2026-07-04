@@ -49,7 +49,14 @@ App bundle macOS (opzionale):
 
 ```bash
 ./scripts/build.sh --macos-bundle
-open build/nebbie-qt/nebbieedit.app
+./scripts/install-macos.sh          # copia in /Applications
+open /Applications/nebbieedit.app   # primo avvio: selezione lib salvata in config
+```
+
+Installazione Linux:
+
+```bash
+./scripts/install-linux.sh ~/.local
 ```
 
 Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)

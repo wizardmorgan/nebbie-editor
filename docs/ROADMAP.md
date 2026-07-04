@@ -1,80 +1,140 @@
 # Roadmap Nebbie Editor
 
-Stato aggiornato dopo il caricamento completo della lib nebbietest (zone, stanze, mob, oggetti).
-
 ## Completato
 
 - [x] Parser `myst.zon` … `myst.gui` (lettura/scrittura)
 - [x] Validazione referenze (`nebbiedit validate`)
-- [x] MVP editing CLI (`edit`, `room/mob/obj set`, `save_lib`)
-- [x] GUI Qt: browse/edit stanze, mob, oggetti, uscite, reset zona, cerca, crea, valida, salva
+- [x] MVP editing CLI + GUI Qt completa
 - [x] Supporto Linux + macOS (CI, app bundle, icona)
-- [x] Caricamento lib nebbietest reale (mob avanzati, oggetti estesi, stanze incl. `#0`)
+- [x] Caricamento lib nebbietest reale
 - [x] Autosalvataggio workspace (10s) + versioni (60s) in `.nebbie/`
 - [x] Backup pre-salvataggio, cronologia ripristino
 - [x] Validazione GUI con navigazione al vnum
-- [x] Prototipo mappa: tab Mappa + `nebbiedit zone graph --dot`
+- [x] **Prototipo mappa** su master: tab Mappa (DOT) + `nebbiedit zone graph --dot`
+- [x] **Config libreria predefinita**: file testo `nebbieedit.conf` + dialogo al primo avvio
 
 ## Prossimo passo immediato
 
 **Mappa interattiva (Fase 6b)** — `QGraphicsView` con layout 2D, piani Z per su/giù, doppio clic sulla stanza.
 
-## Fase 6 — Mappa zone e overview collegamenti
+## Fase 6 — Mappa zone
 
-### Obiettivo
+### Stato attuale (master)
 
-Tab o finestra dedicata con **overview di una zona** (o dell'intero mondo filtrato per zona): stanze come nodi, uscite come archi, navigazione rapida verso l'editor stanza.
+- Tab **Mappa**: selezione zona, statistiche, export Graphviz DOT
+- API `build_zone_graph`, `zone_graph_to_dot`, `rooms_in_zone`
+- Archi su/giù come tratteggio blu nel DOT
 
-### Modello dati (nebbie-core)
+### Prossimo incremento
 
-- `rooms_in_zone(world, zone_num)` → elenco stanze nel range `bottom`–`top`
-- `zone_graph(world, zone_num)` → nodi (vnum, nome, settore) + archi (dir, to_room, one-way?)
-- Rilevamento **link rotti** (to_room assente o fuori zona)
-- Export debug: `nebbiedit zone graph <zone> --dot` per prototipare layout
+1. `QGraphicsView` interattivo (nodi stanza, frecce direzionali)
+2. Piani Z per su/giù (selettore livello)
+3. Doppio clic → tab Stanze
+4. Filtri: link rotti, teleport
+
+Vedi sezione "Rappresentazione visiva" sotto per 2D vs 3D.
 
 ### Rappresentazione visiva
 
-| Approccio | Pro | Contro | Uso consigliato |
-|-----------|-----|--------|-----------------|
-| **Grafo 2D per piano** | Semplice, veloce, standard nei builder MUD | Su/giù non sono "spaziali" | **MVP** |
-| **Piani multipli (layer Z)** | Su/giù come cambio piano; stesso X/Y per stanza | UI leggermente più complessa | **Fase 6b** |
-| **Vista 3D / isometrica** | Intuitiva per torri e dungeon verticali | Molto lavoro (Qt3D, layout 3D, performance) | Opzionale, dopo MVP |
+| Approccio | Uso consigliato |
+|-----------|-----------------|
+| Grafo 2D per piano | **MVP interattivo** |
+| Piani multipli (layer Z) | **Fase 6b** |
+| Vista 3D | Opzionale, dopo MVP |
 
-**Raccomandazione:** non partire con il 3D. La maggior parte delle zone nebbie è planare (N/E/S/O); su/giù sono pochi collegamenti e si rappresentano bene così:
+## Fase 7 — Distribuzione e installazione
 
-- **Piano attivo** = livello Z inferito (BFS da stanza seed, su = Z+1, giù = Z−1)
-- Archi orizzontali: frecce colorate per direzione (N verde, E blu, …)
-- Archi verticali: linea tratteggiata + icona ↑/↓ (clic apre il piano collegato)
-- Stanza selezionata: highlight + pannello uscite come nel tab Stanze
+Conviene **dopo** le funzioni editor principali (mappa interattiva, editing stabile), ma la base è già predisposta.
 
-Layout automatico: force-directed o layered DAG sul sotto-grafo orizzontale; posizioni salvate opzionalmente in metadati locali (non nel formato server).
+### macOS
 
-### GUI (nebbie-qt)
+| Stadio | Cosa | Stato |
+|--------|------|-------|
+| A | `./scripts/build.sh --macos-bundle` → `.app` | ✅ |
+| B | `./scripts/install-macos.sh` → copia in `/Applications` | ✅ |
+| C | DMG firmato, notarizzazione, Sparkle/update | Roadmap |
 
-1. Tab **Mappa** (prototipo DOT) → **Mappa interattiva** con `QGraphicsView`
-2. Combo selezione zona (175 zone su nebbietest)
-3. Doppio clic nodo → tab Stanze con vnum selezionato
-4. Filtri: solo link rotti, solo teleport, evidenza reset mob/obj
+**Risposta:** sì, mettere Applications/DMG/notarizzazione **per ultimo** tra i task prodotto ha senso; intanto `install-macos.sh` evita di lanciare l'app dalla cartella `build/`.
 
-### CLI di supporto
+Config utente (indipendente dall'installazione):
 
-```bash
-nebbiedit zone graph 42 --dot > zone42.dot
-nebbiedit zone rooms 42
+```
+~/Library/Application Support/Nebbie/nebbieedit.conf
 ```
 
-## Fase 7 — Editing avanzato
+### Linux
+
+| Stadio | Cosa | Stato |
+|--------|------|-------|
+| A | `cmake --install` + `.desktop` | ✅ `scripts/install-linux.sh` |
+| B | Pacchetto `.deb` / AppImage | Roadmap |
+| C | Flatpak | Opzionale |
+
+```bash
+./scripts/install-linux.sh /usr/local   # oppure ~/.local
+```
+
+Config:
+
+```
+~/.config/Nebbie/nebbieedit.conf
+```
+
+Contenuto:
+
+```ini
+# Nebbie Editor configuration
+lib_path=/path/to/mudroot/lib
+```
+
+## Fase 8 — Database Nebbie (persistenza oltre i file myst)
+
+Obiettivo: **integrazione con il database del server Nebbie** in tabelle dedicate, senza perdere nessun campo dei file `myst.*`, con migrazione bidirezionale file ↔ DB.
+
+### Priorità (come richiesto)
+
+1. **Zone** (`myst.zon`) — metadati zona, range vnum, reset
+2. **Stanze** (`myst.wld`) — uscite, flag, settore, teleport, extra desc
+3. **Oggetti** (`myst.obj`) — tipo, valori, affect, extra
+4. **Dopo:** mob, shop, special proc, dam/act/pos/gui
+
+### Schema (bozza)
+
+- `nebbie_zones`, `nebbie_zone_resets`
+- `nebbie_rooms`, `nebbie_room_exits`, `nebbie_room_extra_desc`
+- `nebbie_objects`, `nebbie_object_affects`, …
+- Colonne per ogni campo del parser attuale + JSON per estensioni future
+- `source_revision` / `updated_at` per sync con file
+
+### Strategia
+
+1. **nebbie-core**: layer `World` invariato; adapter `load_from_db` / `save_to_db`
+2. Script SQL migrazione iniziale + test roundtrip DB vs `myst.*`
+3. Modalità editor: file, DB, o ibrido (file master finché il server non migra)
+4. Validazione referenze anche su FK DB
+
+Non sostituisce i file finché il boot server non supporta DB; l'editor può offrire export/import.
+
+## Fase 9 — Editing avanzato
 
 - Editor shop / special proc / social in GUI
-- Diff e roundtrip test su lib reale
-- Integrazione validazione con boot server nebbietest (CI opzionale)
+- Diff e roundtrip su lib reale
+- Validazione vs boot server nebbietest (CI)
 
-## Fase 8 — Mappa mondo (opzionale)
+## Fase 10 — Mappa mondo (opzionale)
 
-- Vista tutte le zone come macro-nodi (collegamenti inter-zona via teleport / uscite verso altre zone)
-- Esportazione immagine / Graphviz per documentazione
+- Vista macro-zone (collegamenti inter-zona)
+- Export immagine / Graphviz
 
-## Direzioni uscita (riferimento)
+## Sessione e versioning (GUI)
+
+```
+mudroot/lib/.nebbie/
+  workspace/     # autosalvataggio ogni 10s
+  versions/      # cronologia ogni 60s + pre-save
+```
+
+## Direzioni uscita
 
 | D# | Nome | Layout 2D |
 |----|------|-----------|
@@ -82,19 +142,5 @@ nebbiedit zone rooms 42
 | 1 | est | +X |
 | 2 | sud | −Y |
 | 3 | ovest | −X |
-| 4 | su | layer Z+1 (non disegnato sullo stesso piano) |
+| 4 | su | layer Z+1 |
 | 5 | giù | layer Z−1 |
-
-Il server non definisce coordinate assolute: il layout è **derivato** dal grafo delle uscite, non letto da file.
-
-## Sessione e versioning (GUI)
-
-Mentre modifichi una libreria aperta, Nebbie Editor salva in:
-
-```
-mudroot/lib/.nebbie/
-  workspace/     # ultimo autosalvataggio (ogni 10s se ci sono modifiche)
-  versions/      # cronologia (ogni 60s + prima di ogni Salva)
-```
-
-Menu **File → Cronologia** per ripristinare workspace o una versione precedente.

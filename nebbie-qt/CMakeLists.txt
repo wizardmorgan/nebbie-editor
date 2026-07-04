@@ -8,6 +8,8 @@ add_executable(nebbieedit
     main.cpp
     main_window.cpp
     main_window.hpp
+    app_config.cpp
+    app_config.hpp
     nebbieedit.qrc
 )
 
@@ -30,4 +32,16 @@ if(APPLE AND NEBBIE_MACOS_BUNDLE)
     if(EXISTS "${NEBBIE_APP_ICON}")
         set_target_properties(nebbieedit PROPERTIES MACOSX_BUNDLE_ICON_FILE nebbieedit)
     endif()
+endif()
+
+include(GNUInstallDirs)
+
+if(NOT (APPLE AND NEBBIE_MACOS_BUNDLE))
+    install(TARGETS nebbieedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/nebbieedit.desktop"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+endif()
+
+if(APPLE AND NEBBIE_MACOS_BUNDLE)
+    install(TARGETS nebbieedit BUNDLE DESTINATION "/Applications")
 endif()

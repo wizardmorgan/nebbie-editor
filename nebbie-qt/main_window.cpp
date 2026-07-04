@@ -1,5 +1,6 @@
 #include "main_window.hpp"
 
+#include "app_config.hpp"
 #include "nebbie/edit.hpp"
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
@@ -371,6 +372,10 @@ void MainWindow::setupMenus() {
     connect(validate_action, &QAction::triggered, this, &MainWindow::validateLib);
 }
 
+void MainWindow::rememberLibPath(const std::filesystem::path& path) {
+    nebbie::qt::write_lib_path(QString::fromStdString(path.string()));
+}
+
 void MainWindow::openLibPath(const QString& path) {
     if (path.isEmpty()) {
         return;
@@ -379,6 +384,7 @@ void MainWindow::openLibPath(const QString& path) {
         const std::filesystem::path requested(path.toStdString());
         const std::filesystem::path resolved = nebbie::resolve_lib_directory(requested);
         loadLib(resolved);
+        rememberLibPath(resolved);
         if (resolved != requested) {
             setStatus(QString("Libreria risolta in: %1").arg(QString::fromStdString(resolved.string())));
         }
@@ -405,6 +411,45 @@ void MainWindow::openLib() {
         return;
     }
     openLibPath(dir);
+}
+
+void MainWindow::openStartupLib() {
+    const QString saved = nebbie::qt::read_lib_path();
+    if (nebbie::qt::lib_path_exists(saved)) {
+        openLibPath(saved);
+        return;
+    }
+
+    if (!saved.isEmpty()) {
+        promptForLibPath(QString("Il percorso salvato non è più valido:\n%1").arg(saved));
+        return;
+    }
+
+    promptForLibPath(QString(
+        "Benvenuto in Nebbie Editor.\n\n"
+        "Seleziona la cartella della libreria di gioco (mudroot o mudroot/lib).\n"
+        "Il percorso verrà salvato in:\n%1")
+                         .arg(nebbie::qt::default_config_path()));
+}
+
+bool MainWindow::promptForLibPath(const QString& reason) {
+    if (!reason.isEmpty()) {
+        QMessageBox::information(this, "Libreria Nebbie", reason);
+    }
+
+    const QString initial = nebbie::qt::read_lib_path();
+    const QString dir = QFileDialog::getExistingDirectory(
+        this,
+        "Seleziona libreria Nebbie (mudroot o mudroot/lib)",
+        initial.isEmpty() ? QDir::homePath() : initial,
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (dir.isEmpty()) {
+        setStatus("Nessuna libreria selezionata. Usa File → Apri libreria.");
+        return false;
+    }
+
+    openLibPath(dir);
+    return !lib_path_.empty();
 }
 
 void MainWindow::loadLib(const std::filesystem::path& path) {
