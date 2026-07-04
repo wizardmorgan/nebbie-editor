@@ -13,6 +13,9 @@ target_link_libraries(nebbie-mvp-tests PRIVATE nebbie-core)
 add_executable(nebbie-create-tests test_create.cpp)
 target_link_libraries(nebbie-create-tests PRIVATE nebbie-core)
 
+add_executable(nebbie-world-index-tests test_world_index.cpp)
+target_link_libraries(nebbie-world-index-tests PRIVATE nebbie-core)
+
 add_test(NAME load-fixtures COMMAND nebbie-core-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
 add_test(NAME validate-fixtures COMMAND nebbie-validate-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
 
@@ -23,6 +26,9 @@ add_test(NAME mvp-edit-workflow
 add_test(NAME create-edit-workflow
          COMMAND nebbie-create-tests ${CMAKE_SOURCE_DIR}/tests/fixtures
                                        ${CMAKE_BINARY_DIR}/create-work-lib)
+
+add_test(NAME world-index-fixtures
+         COMMAND nebbie-world-index-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
 
 add_executable(nebbie-reset-tests test_reset.cpp)
 target_link_libraries(nebbie-reset-tests PRIVATE nebbie-core)

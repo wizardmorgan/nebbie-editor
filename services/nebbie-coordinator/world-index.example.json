@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-07-04T12:26:59Z",
+  "source": "local-export",
+  "zones": [
+    {
+      "table_index": 0,
+      "zone_num": 1,
+      "name": "Zona di prova",
+      "bottom": 0,
+      "top": 3099,
+      "rooms_used_count": 1,
+      "rooms_free_count": 3099,
+      "rooms_used": [3001],
+      "rooms_free": [[0, 3000], [3002, 3099]]
+    }
+  ],
+  "mob_vnums": [1,2,2111,2112,2113],
+  "object_vnums": [1,9001,32017],
+  "reservations": [
+
+  ]
+}

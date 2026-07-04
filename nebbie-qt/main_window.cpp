@@ -1,11 +1,13 @@
 #include "main_window.hpp"
 
 #include "app_config.hpp"
+#include "coordinator_client.hpp"
 #include "world_zone_map_widget.hpp"
 #include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
+#include "nebbie/world_index.hpp"
 #include "nebbie/zone_graph.hpp"
 
 #include <QAction>
@@ -15,6 +17,8 @@
 #include <QCheckBox>
 #include <QTabWidget>
 #include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -26,6 +30,7 @@
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QNetworkAccessManager>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -37,6 +42,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <fstream>
 #include <stdexcept>
 
 namespace {
@@ -80,6 +86,8 @@ void addListItem(QListWidget* list, long vnum, const QString& label) {
 } // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+    app_config_ = nebbie::qt::read_config();
+    network_ = new QNetworkAccessManager(this);
     setupUi();
     setupMenus();
     setWindowTitle("Nebbie Editor");
@@ -501,10 +509,321 @@ void MainWindow::setupMenus() {
     auto* validate_action = tools_menu->addAction("&Valida");
     validate_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     connect(validate_action, &QAction::triggered, this, &MainWindow::validateLib);
+
+    auto* coordinator_menu = menuBar()->addMenu("&Coordinator");
+    auto* coordinator_config_action = coordinator_menu->addAction("Configurazione...");
+    connect(coordinator_config_action, &QAction::triggered, this, &MainWindow::configureCoordinator);
+    auto* refresh_index_action = coordinator_menu->addAction("Aggiorna indice mondo");
+    connect(refresh_index_action, &QAction::triggered, this, &MainWindow::refreshWorldIndex);
+    auto* load_index_action = coordinator_menu->addAction("Carica indice da file...");
+    connect(load_index_action, &QAction::triggered, this, &MainWindow::loadWorldIndexFromFile);
+    auto* export_index_action = coordinator_menu->addAction("Esporta indice locale (produzione finta)");
+    connect(export_index_action, &QAction::triggered, this, &MainWindow::exportLocalWorldIndex);
+    coordinator_menu->addSeparator();
+    auto* reserve_action = coordinator_menu->addAction("Prenota vnum...");
+    connect(reserve_action, &QAction::triggered, this, &MainWindow::reserveVnums);
 }
 
 void MainWindow::rememberLibPath(const std::filesystem::path& path) {
-    nebbie::qt::write_lib_path(QString::fromStdString(path.string()));
+    app_config_.lib_path = QString::fromStdString(path.string());
+    nebbie::qt::write_config(app_config_);
+}
+
+int MainWindow::preferredZoneNumForNewRoom() const {
+    if (const int zone_num = currentZoneNum(); zone_num > 0) {
+        return zone_num;
+    }
+    if (selected_world_zone_ > 0) {
+        return selected_world_zone_;
+    }
+    const long room_vnum = currentRoomVnum();
+    if (room_vnum > 0) {
+        const nebbie::Room* room = world_.find_room(room_vnum);
+        if (room && room->zone_index >= 0
+            && room->zone_index < static_cast<int>(world_.zones.size())) {
+            return world_.zones[room->zone_index].num;
+        }
+    }
+    return 0;
+}
+
+long MainWindow::suggestRoomVnum() const {
+    if (world_index_) {
+        const int zone_num = preferredZoneNumForNewRoom();
+        if (zone_num > 0) {
+            const auto suggested = nebbie::suggest_room_vnum_in_zone(*world_index_, zone_num);
+            if (suggested) {
+                return *suggested;
+            }
+        }
+        for (const auto& zone : world_index_->zones) {
+            const auto suggested = nebbie::suggest_room_vnum_in_zone(*world_index_, zone.zone_num);
+            if (suggested) {
+                return *suggested;
+            }
+        }
+    }
+    return nebbie::suggest_next_room_vnum(world_);
+}
+
+long MainWindow::suggestMobVnum() const {
+    if (world_index_) {
+        const auto suggested = nebbie::suggest_mob_vnum(*world_index_);
+        if (suggested) {
+            return *suggested;
+        }
+    }
+    return nebbie::suggest_next_mob_vnum(world_);
+}
+
+long MainWindow::suggestObjectVnum() const {
+    if (world_index_) {
+        const auto suggested = nebbie::suggest_object_vnum(*world_index_);
+        if (suggested) {
+            return *suggested;
+        }
+    }
+    return nebbie::suggest_next_object_vnum(world_);
+}
+
+bool MainWindow::warnIfRemoteVnumConflict(const QString& kind, const long vnum) const {
+    if (!world_index_) {
+        return true;
+    }
+
+    bool taken = false;
+    if (kind == QStringLiteral("room")) {
+        taken = nebbie::room_vnum_taken(*world_index_, vnum);
+    } else if (kind == QStringLiteral("mob")) {
+        taken = nebbie::mob_vnum_taken(*world_index_, vnum);
+    } else if (kind == QStringLiteral("object")) {
+        taken = nebbie::object_vnum_taken(*world_index_, vnum);
+    }
+    if (!taken) {
+        return true;
+    }
+
+    const auto answer = QMessageBox::warning(
+        const_cast<MainWindow*>(this),
+        "Conflitto indice mondo",
+        QString("Il vnum %1 risulta occupato o prenotato nell'indice remoto.\n"
+                "Vuoi crearlo comunque nella libreria locale?")
+            .arg(vnum),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    return answer == QMessageBox::Yes;
+}
+
+void MainWindow::configureCoordinator() {
+    QDialog dialog(this);
+    dialog.setWindowTitle("Configurazione coordinator");
+
+    auto* form = new QFormLayout(&dialog);
+    auto* index_url = new QLineEdit(app_config_.index_url);
+    auto* coordinator_url = new QLineEdit(app_config_.coordinator_url);
+    auto* coordinator_token = new QLineEdit(app_config_.coordinator_token);
+    coordinator_token->setEchoMode(QLineEdit::Password);
+    auto* builder_name = new QLineEdit(app_config_.builder_name);
+
+    form->addRow("URL indice mondo:", index_url);
+    form->addRow("URL API coordinator:", coordinator_url);
+    form->addRow("Token API:", coordinator_token);
+    form->addRow("Nome builder:", builder_name);
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    app_config_.index_url = index_url->text().trimmed();
+    app_config_.coordinator_url = coordinator_url->text().trimmed();
+    app_config_.coordinator_token = coordinator_token->text().trimmed();
+    app_config_.builder_name = builder_name->text().trimmed();
+    if (!nebbie::qt::write_config(app_config_)) {
+        QMessageBox::warning(this, "Coordinator", "Impossibile salvare la configurazione.");
+        return;
+    }
+    setStatus("Configurazione coordinator salvata.");
+}
+
+void MainWindow::refreshWorldIndex() {
+    if (app_config_.index_url.isEmpty()) {
+        QMessageBox::information(this, "Indice mondo",
+                                 "Configura index_url in Coordinator → Configurazione.");
+        return;
+    }
+
+    setStatus("Scarico indice mondo...");
+    const auto result = nebbie::qt::fetch_coordinator_sync(*network_,
+                                                           app_config_.index_url,
+                                                           app_config_.coordinator_url,
+                                                           app_config_.coordinator_token);
+    if (!result.ok || !result.index) {
+        QMessageBox::warning(this, "Indice mondo", result.error);
+        setStatus("Errore scaricamento indice mondo.");
+        return;
+    }
+
+    world_index_ = *result.index;
+    setStatus(QString("Indice mondo aggiornato: %1 zone, %2 prenotazioni attive.")
+                  .arg(world_index_->zones.size())
+                  .arg(world_index_->reservations.size()));
+}
+
+void MainWindow::loadWorldIndexFromFile() {
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Carica world-index.json", QString(), "JSON (*.json);;Tutti i file (*)");
+    if (path.isEmpty()) {
+        return;
+    }
+
+    std::ifstream in(path.toStdString());
+    if (!in) {
+        QMessageBox::warning(this, "Indice mondo", "Impossibile leggere il file.");
+        return;
+    }
+    const std::string json((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const auto parsed = nebbie::world_index_from_json(json);
+    if (!parsed) {
+        QMessageBox::warning(this, "Indice mondo", "JSON indice mondo non valido.");
+        return;
+    }
+
+    world_index_ = *parsed;
+    if (!app_config_.coordinator_url.isEmpty() && !app_config_.coordinator_token.isEmpty()) {
+        const auto result = nebbie::qt::fetch_coordinator_sync(*network_,
+                                                               QString(),
+                                                               app_config_.coordinator_url,
+                                                               app_config_.coordinator_token,
+                                                               false);
+        if (result.ok) {
+            nebbie::merge_reservations(*world_index_, result.reservations);
+        }
+    }
+
+    setStatus(QString("Indice mondo caricato da file: %1 zone.").arg(world_index_->zones.size()));
+}
+
+void MainWindow::exportLocalWorldIndex() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Indice mondo", "Apri prima una libreria locale.");
+        return;
+    }
+
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Esporta indice mondo locale", QStringLiteral("world-index.json"),
+        "JSON (*.json);;Tutti i file (*)");
+    if (path.isEmpty()) {
+        return;
+    }
+
+    const nebbie::WorldIndex index = nebbie::build_world_index(world_, "local-export");
+    std::ofstream out(path.toStdString());
+    if (!out) {
+        QMessageBox::warning(this, "Indice mondo", "Impossibile scrivere il file.");
+        return;
+    }
+    out << nebbie::world_index_to_json(index);
+    setStatus(QString("Esportato indice locale con %1 zone in %2.")
+                  .arg(index.zones.size())
+                  .arg(path));
+}
+
+void MainWindow::reserveVnums() {
+    if (app_config_.coordinator_url.isEmpty() || app_config_.coordinator_token.isEmpty()) {
+        QMessageBox::information(this, "Prenotazioni",
+                                 "Configura coordinator_url e coordinator_token.");
+        return;
+    }
+    if (app_config_.builder_name.isEmpty()) {
+        QMessageBox::information(this, "Prenotazioni", "Configura builder_name.");
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle("Prenota vnum");
+    auto* form = new QFormLayout(&dialog);
+
+    auto* zone_num = new QSpinBox;
+    zone_num->setRange(0, 99999);
+    zone_num->setValue(preferredZoneNumForNewRoom());
+    auto* kind = new QComboBox;
+    kind->addItem("Stanze", QStringLiteral("room"));
+    kind->addItem("Mob", QStringLiteral("mob"));
+    kind->addItem("Oggetti", QStringLiteral("object"));
+    auto* start_vnum = new QSpinBox;
+    start_vnum->setRange(1, 999999);
+    start_vnum->setValue(static_cast<int>(suggestRoomVnum()));
+    auto* end_vnum = new QSpinBox;
+    end_vnum->setRange(1, 999999);
+    end_vnum->setValue(start_vnum->value());
+    auto* note = new QLineEdit;
+
+    form->addRow("Zona:", zone_num);
+    form->addRow("Tipo:", kind);
+    form->addRow("Vnum inizio:", start_vnum);
+    form->addRow("Vnum fine:", end_vnum);
+    form->addRow("Nota:", note);
+
+    auto update_suggestion = [this, kind, zone_num, start_vnum, end_vnum]() {
+        long suggested = 1;
+        if (kind->currentData().toString() == QStringLiteral("room")) {
+            if (world_index_ && zone_num->value() > 0) {
+                const auto value =
+                    nebbie::suggest_room_vnum_in_zone(*world_index_, zone_num->value());
+                suggested = value ? *value : nebbie::suggest_next_room_vnum(world_);
+            } else {
+                suggested = suggestRoomVnum();
+            }
+        } else if (kind->currentData().toString() == QStringLiteral("mob")) {
+            suggested = suggestMobVnum();
+        } else {
+            suggested = suggestObjectVnum();
+        }
+        start_vnum->setValue(static_cast<int>(suggested));
+        if (end_vnum->value() < start_vnum->value()) {
+            end_vnum->setValue(start_vnum->value());
+        }
+    };
+    connect(kind, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, update_suggestion);
+    connect(zone_num, QOverload<int>::of(&QSpinBox::valueChanged), &dialog, update_suggestion);
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    nebbie::WorldIndexReservation reservation;
+    reservation.builder = app_config_.builder_name.toStdString();
+    reservation.zone_num = zone_num->value();
+    reservation.kind = kind->currentData().toString().toStdString();
+    reservation.start_vnum = start_vnum->value();
+    reservation.end_vnum = end_vnum->value();
+    reservation.note = note->text().toStdString();
+    reservation.status = "active";
+
+    QString error;
+    if (!nebbie::qt::post_reservation_sync(*network_,
+                                           app_config_.coordinator_url,
+                                           app_config_.coordinator_token,
+                                           reservation,
+                                           &error)) {
+        QMessageBox::warning(this, "Prenotazioni", error.isEmpty() ? "Invio fallito." : error);
+        return;
+    }
+
+    refreshWorldIndex();
+    setStatus(QString("Prenotati vnum %1-%2 per %3.")
+                  .arg(reservation.start_vnum)
+                  .arg(reservation.end_vnum)
+                  .arg(QString::fromStdString(reservation.kind)));
 }
 
 void MainWindow::openLibPath(const QString& path) {
@@ -1488,9 +1807,12 @@ void MainWindow::createRoom() {
     }
 
     bool ok = false;
-    const int suggested = static_cast<int>(nebbie::suggest_next_room_vnum(world_));
+    const int suggested = static_cast<int>(suggestRoomVnum());
     const int vnum = QInputDialog::getInt(this, "Nuova stanza", "Vnum stanza:", suggested, 1, 999999, 1, &ok);
     if (!ok) {
+        return;
+    }
+    if (!warnIfRemoteVnumConflict(QStringLiteral("room"), vnum)) {
         return;
     }
 
@@ -1512,9 +1834,12 @@ void MainWindow::createMob() {
     }
 
     bool ok = false;
-    const int suggested = static_cast<int>(nebbie::suggest_next_mob_vnum(world_));
+    const int suggested = static_cast<int>(suggestMobVnum());
     const int vnum = QInputDialog::getInt(this, "Nuovo mob", "Vnum mobile:", suggested, 1, 99999, 1, &ok);
     if (!ok) {
+        return;
+    }
+    if (!warnIfRemoteVnumConflict(QStringLiteral("mob"), vnum)) {
         return;
     }
 
@@ -1536,9 +1861,12 @@ void MainWindow::createObject() {
     }
 
     bool ok = false;
-    const int suggested = static_cast<int>(nebbie::suggest_next_object_vnum(world_));
+    const int suggested = static_cast<int>(suggestObjectVnum());
     const int vnum = QInputDialog::getInt(this, "Nuovo oggetto", "Vnum oggetto:", suggested, 1, 99999, 1, &ok);
     if (!ok) {
+        return;
+    }
+    if (!warnIfRemoteVnumConflict(QStringLiteral("object"), vnum)) {
         return;
     }
 

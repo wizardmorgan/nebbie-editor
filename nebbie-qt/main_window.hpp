@@ -1,15 +1,19 @@
 #pragma once
 
+#include "app_config.hpp"
+
 #include "nebbie/lib_context.hpp"
 #include "nebbie/session.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
+#include "nebbie/world_index.hpp"
 
 #include <QMainWindow>
 #include <QTimer>
 
 #include <chrono>
 #include <filesystem>
+#include <optional>
 #include <vector>
 
 class QTabWidget;
@@ -27,6 +31,7 @@ class QListWidgetItem;
 class ZoneMapWidget;
 class WorldZoneMapWidget;
 class QCheckBox;
+class QNetworkAccessManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -46,6 +51,11 @@ public slots:
     void restoreFromWorkspace();
     void restoreVersion();
     void onValidationIssueActivated(QListWidgetItem* item);
+    void configureCoordinator();
+    void refreshWorldIndex();
+    void loadWorldIndexFromFile();
+    void exportLocalWorldIndex();
+    void reserveVnums();
 
 private slots:
     void onRoomSelected();
@@ -112,11 +122,19 @@ private:
     bool confirmSaveIfDirty();
     void markDirty();
     void markClean();
+    int preferredZoneNumForNewRoom() const;
+    long suggestRoomVnum() const;
+    long suggestMobVnum() const;
+    long suggestObjectVnum() const;
+    bool warnIfRemoteVnumConflict(const QString& kind, long vnum) const;
 
     nebbie::World world_;
     nebbie::LibContext context_;
     std::filesystem::path lib_path_;
     bool dirty_ = false;
+    nebbie::qt::AppConfig app_config_;
+    std::optional<nebbie::WorldIndex> world_index_;
+    QNetworkAccessManager* network_ = nullptr;
 
     QString room_filter_;
     QString mob_filter_;

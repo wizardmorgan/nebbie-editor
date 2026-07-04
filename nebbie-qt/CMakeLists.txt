@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -10,6 +10,8 @@ add_executable(nebbieedit
     main_window.hpp
     app_config.cpp
     app_config.hpp
+    coordinator_client.cpp
+    coordinator_client.hpp
     world_zone_map_widget.cpp
     world_zone_map_widget.hpp
     zone_map_widget.cpp
@@ -22,7 +24,7 @@ if(APPLE AND EXISTS "${NEBBIE_APP_ICON}")
     target_sources(nebbieedit PRIVATE "${NEBBIE_APP_ICON}")
 endif()
 
-target_link_libraries(nebbieedit PRIVATE Qt6::Widgets nebbie-core)
+target_link_libraries(nebbieedit PRIVATE Qt6::Widgets Qt6::Network nebbie-core)
 target_compile_features(nebbieedit PRIVATE cxx_std_17)
 
 if(APPLE AND NEBBIE_MACOS_BUNDLE)
