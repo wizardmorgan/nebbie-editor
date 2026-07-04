@@ -95,13 +95,18 @@ int main(int argc, char** argv) {
             nebbie::World obj_world;
             nebbie::load_myst_obj(obj_world, obj_fixture);
             const nebbie::GameObject* extended = obj_world.find_object(9001);
-            if (obj_world.objects.size() != 2 || !extended || !extended->has_extra_flags2
+            if (obj_world.objects.size() != 3 || !extended || !extended->has_extra_flags2
                 || extended->extra_flags2 != 32768
                 || extended->extra_flags != 2048
                 || extended->forbidden_char.find("no thief") == std::string::npos
                 || extended->affects.size() != 1 || extended->affects[0].location != 13
                 || extended->affects[0].modifier != 0) {
                 throw std::runtime_error("fixture myst.obj extended sections not parsed correctly");
+            }
+            const nebbie::GameObject* plato = obj_world.find_object(32017);
+            if (!plato || plato->short_descr.find("Platone") == std::string::npos
+                || plato->type_flag != 9) {
+                throw std::runtime_error("fixture myst.obj #32017 extra ~ line not parsed correctly");
             }
         }
 

@@ -101,9 +101,49 @@ std::string peek_file_line(FILE* fp) {
 std::string read_data_line(FILE* fp) {
     while (true) {
         const std::string line = trim_line(fread_line(fp));
-        if (!line.empty()) {
+        if (!line.empty() && line != "~") {
             return line;
         }
+    }
+}
+
+char peek_section_letter(FILE* fp) {
+    const long pos = std::ftell(fp);
+    const char letter = consume_section(fp);
+    std::fseek(fp, pos, SEEK_SET);
+    return letter;
+}
+
+bool is_object_section_letter(char letter) {
+    return letter == 'E' || letter == 'A' || letter == 'F' || letter == 'P';
+}
+
+void read_prescript_object_tail(FILE* fp, GameObject& obj) {
+    while (true) {
+        if (fread_peek_is_number(fp)) {
+            return;
+        }
+
+        const char letter = peek_section_letter(fp);
+        if (letter == 'E') {
+            (void)consume_section(fp);
+            ExtraDesc extra;
+            extra.keyword = fread_string(fp);
+            extra.description = fread_string(fp);
+            obj.extra_descs.push_back(std::move(extra));
+            continue;
+        }
+        if (is_object_section_letter(letter)) {
+            return;
+        }
+
+        const std::string line = trim_line(peek_file_line(fp));
+        if (line.empty() || line == "~") {
+            (void)fread_line(fp);
+            continue;
+        }
+
+        (void)fread_string(fp);
     }
 }
 
@@ -139,14 +179,15 @@ void read_object_entry(FILE* fp, GameObject& obj) {
     obj.description = fread_string(fp);
     obj.action_description = fread_string(fp);
 
-    read_object_numeric_header(fp, obj);
-
     obj.has_extra_flags2 = false;
     obj.extra_flags2 = 0;
     obj.forbidden_char.clear();
     obj.forbidden_room.clear();
     obj.extra_descs.clear();
     obj.affects.clear();
+
+    read_prescript_object_tail(fp, obj);
+    read_object_numeric_header(fp, obj);
 
     char section = consume_section(fp);
     while (true) {
