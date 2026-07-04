@@ -10,22 +10,20 @@ Stato aggiornato dopo il caricamento completo della lib nebbietest (zone, stanze
 - [x] GUI Qt: browse/edit stanze, mob, oggetti, uscite, reset zona, cerca, crea, valida, salva
 - [x] Supporto Linux + macOS (CI, app bundle, icona)
 - [x] Caricamento lib nebbietest reale (mob avanzati, oggetti estesi, stanze incl. `#0`)
+- [x] Autosalvataggio workspace (10s) + versioni (60s) in `.nebbie/`
+- [x] Backup pre-salvataggio, cronologia ripristino
+- [x] Validazione GUI con navigazione al vnum
+- [x] Prototipo mappa: tab Mappa + `nebbiedit zone graph --dot`
 
 ## Prossimo passo immediato
 
-**Consolidamento e qualità** prima della mappa zone:
-
-1. **Validazione in GUI** — pannello errori/warning dopo `Valida`, con link al vnum coinvolto
-2. **Test e fixture** — allineare `validate-fixtures` (shop/guild) e test su lib vendor
-3. **Salvataggio sicuro** — backup automatico `.bak` prima di `save_lib`, conferma se validazione fallisce
-
-Questo rende affidabile l’editing quotidiano mentre si progetta la mappa.
+**Mappa interattiva (Fase 6b)** — `QGraphicsView` con layout 2D, piani Z per su/giù, doppio clic sulla stanza.
 
 ## Fase 6 — Mappa zone e overview collegamenti
 
 ### Obiettivo
 
-Tab o finestra dedicata con **overview di una zona** (o dell’intero mondo filtrato per zona): stanze come nodi, uscite come archi, navigazione rapida verso l’editor stanza.
+Tab o finestra dedicata con **overview di una zona** (o dell'intero mondo filtrato per zona): stanze come nodi, uscite come archi, navigazione rapida verso l'editor stanza.
 
 ### Modello dati (nebbie-core)
 
@@ -38,7 +36,7 @@ Tab o finestra dedicata con **overview di una zona** (o dell’intero mondo filt
 
 | Approccio | Pro | Contro | Uso consigliato |
 |-----------|-----|--------|-----------------|
-| **Grafo 2D per piano** | Semplice, veloce, standard nei builder MUD | Su/giù non sono “spaziali” | **MVP** |
+| **Grafo 2D per piano** | Semplice, veloce, standard nei builder MUD | Su/giù non sono "spaziali" | **MVP** |
 | **Piani multipli (layer Z)** | Su/giù come cambio piano; stesso X/Y per stanza | UI leggermente più complessa | **Fase 6b** |
 | **Vista 3D / isometrica** | Intuitiva per torri e dungeon verticali | Molto lavoro (Qt3D, layout 3D, performance) | Opzionale, dopo MVP |
 
@@ -53,11 +51,10 @@ Layout automatico: force-directed o layered DAG sul sotto-grafo orizzontale; pos
 
 ### GUI (nebbie-qt)
 
-1. Tab **Mappa** o finestra **Overview zona…**
+1. Tab **Mappa** (prototipo DOT) → **Mappa interattiva** con `QGraphicsView`
 2. Combo selezione zona (175 zone su nebbietest)
-3. `QGraphicsView` + scene con nodi/edge (no dipendenze esterne in MVP)
-4. Doppio clic nodo → tab Stanze con vnum selezionato
-5. Filtri: solo link rotti, solo teleport, evidenza reset mob/obj
+3. Doppio clic nodo → tab Stanze con vnum selezionato
+4. Filtri: solo link rotti, solo teleport, evidenza reset mob/obj
 
 ### CLI di supporto
 
@@ -89,3 +86,15 @@ nebbiedit zone rooms 42
 | 5 | giù | layer Z−1 |
 
 Il server non definisce coordinate assolute: il layout è **derivato** dal grafo delle uscite, non letto da file.
+
+## Sessione e versioning (GUI)
+
+Mentre modifichi una libreria aperta, Nebbie Editor salva in:
+
+```
+mudroot/lib/.nebbie/
+  workspace/     # ultimo autosalvataggio (ogni 10s se ci sono modifiche)
+  versions/      # cronologia (ogni 60s + prima di ogni Salva)
+```
+
+Menu **File → Cronologia** per ripristinare workspace o una versione precedente.

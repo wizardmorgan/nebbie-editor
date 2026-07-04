@@ -1,6 +1,7 @@
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
+#include "nebbie/zone_graph.hpp"
 
 #include "cli_parse.hpp"
 #include "shell.hpp"
@@ -22,6 +23,8 @@ void usage() {
         << "  nebbiedit load <lib-directory>\n"
         << "  nebbiedit zone list\n"
         << "  nebbiedit zone show <zone-number>\n"
+        << "  nebbiedit zone rooms <zone-number>\n"
+        << "  nebbiedit zone graph <zone-number> [--dot]\n"
         << "  nebbiedit room show <vnum>\n"
         << "  nebbiedit mob list\n"
         << "  nebbiedit mob show <vnum>\n"
@@ -129,6 +132,42 @@ bool run(int argc, char** argv) {
                 }
                 std::cerr << "Zone not loaded: " << num << '\n';
                 return false;
+            }
+            if (sub == "rooms" && argc >= 4) {
+                const int num = std::stoi(argv[3]);
+                const auto rooms = nebbie::rooms_in_zone(g_world, num);
+                if (rooms.empty()) {
+                    std::cerr << "No rooms in zone " << num << " (zone not loaded?)\n";
+                    return false;
+                }
+                for (long vnum : rooms) {
+                    const nebbie::Room* room = g_world.find_room(vnum);
+                    std::cout << vnum;
+                    if (room) {
+                        std::cout << " " << room->name;
+                    }
+                    std::cout << '\n';
+                }
+                return true;
+            }
+            if (sub == "graph" && argc >= 4) {
+                const int num = std::stoi(argv[3]);
+                const nebbie::ZoneGraph graph = nebbie::build_zone_graph(g_world, num);
+                if (graph.nodes.empty()) {
+                    std::cerr << "No rooms in zone " << num << " (zone not loaded?)\n";
+                    return false;
+                }
+                const bool dot = argc >= 5 && std::string(argv[4]) == "--dot";
+                if (dot) {
+                    std::cout << nebbie::zone_graph_to_dot(graph);
+                } else {
+                    std::cout << "Zone " << graph.zone_num << " " << graph.zone_name
+                              << " [" << graph.bottom << "-" << graph.top << "]\n";
+                    std::cout << "Rooms: " << graph.nodes.size()
+                              << " Edges: " << graph.edges.size() << '\n';
+                    std::cout << "Use --dot for Graphviz output.\n";
+                }
+                return true;
             }
         }
 

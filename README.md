@@ -72,7 +72,7 @@ Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Interfaccia grafica (Qt)
 
-Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva.
+Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva, **autosalvataggio** e cronologia versioni (`.nebbie/` nella lib).
 
 ```bash
 ./build/nebbie-qt/nebbieedit /path/to/mudroot/lib

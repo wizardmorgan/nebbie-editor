@@ -3,14 +3,17 @@
 #include "nebbie/edit.hpp"
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
+#include "nebbie/zone_graph.hpp"
 
 #include <QAction>
 #include <QCloseEvent>
+#include <QColor>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QDateTime>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -264,13 +267,35 @@ void MainWindow::setupUi() {
     zone_tab_ = zone_page;
     tabs_->addTab(zone_page, "Zone");
 
-    validation_log_ = new QPlainTextEdit;
-    validation_log_->setReadOnly(true);
-    validation_log_->setPlaceholderText("Esegui Valida per vedere errori e avvisi.");
+    map_tab_ = new QWidget;
+    auto* map_layout = new QVBoxLayout(map_tab_);
+    map_layout->addWidget(new QLabel("Prototipo mappa zona (Graphviz DOT). Archi su/giù in blu tratteggiato."));
+    auto* map_top = new QHBoxLayout;
+    map_zone_ = new QComboBox;
+    auto* map_refresh = new QPushButton("Aggiorna mappa");
+    map_top->addWidget(new QLabel("Zona:"));
+    map_top->addWidget(map_zone_, 1);
+    map_top->addWidget(map_refresh);
+    map_layout->addLayout(map_top);
+    map_output_ = new QPlainTextEdit;
+    map_output_->setReadOnly(true);
+    map_output_->setPlaceholderText("Seleziona una zona e premi Aggiorna mappa.");
+    map_layout->addWidget(map_output_, 1);
+    tabs_->addTab(map_tab_, "Mappa");
+
     validation_tab_ = new QWidget;
     auto* validation_layout = new QVBoxLayout(validation_tab_);
-    validation_layout->addWidget(new QLabel("Risultato validazione incrociata:"));
-    validation_layout->addWidget(validation_log_);
+
+    auto* validation_top = new QHBoxLayout;
+    auto* validate_button = new QPushButton("Valida ora");
+    auto* validation_summary = new QLabel("Esegui Valida per vedere errori e avvisi. Doppio clic per andare all'entità.");
+    validation_summary->setWordWrap(true);
+    validation_top->addWidget(validate_button);
+    validation_layout->addWidget(validation_summary);
+    validation_layout->addLayout(validation_top);
+
+    validation_list_ = new QListWidget;
+    validation_layout->addWidget(validation_list_, 1);
     tabs_->addTab(validation_tab_, "Validazione");
 
     root_layout->addWidget(tabs_);
@@ -306,7 +331,15 @@ void MainWindow::setupUi() {
     connect(reset_down, &QPushButton::clicked, this, &MainWindow::moveResetDown);
     connect(reset_goto_room, &QPushButton::clicked, this, &MainWindow::goToResetRoom);
     connect(reset_goto_entity, &QPushButton::clicked, this, &MainWindow::goToResetEntity);
+    connect(validate_button, &QPushButton::clicked, this, &MainWindow::validateLib);
+    connect(validation_list_, &QListWidget::itemDoubleClicked, this, &MainWindow::onValidationIssueActivated);
+    connect(map_refresh, &QPushButton::clicked, this, &MainWindow::refreshZoneMap);
+    connect(map_zone_, &QComboBox::currentIndexChanged, this, [this](int) { refreshZoneMap(); });
     updateResetFieldHints();
+
+    autosave_timer_ = new QTimer(this);
+    autosave_timer_->setInterval(session_config_.autosave_interval_sec * 1000);
+    connect(autosave_timer_, &QTimer::timeout, this, &MainWindow::onAutosaveTick);
 }
 
 void MainWindow::setupMenus() {
@@ -322,6 +355,12 @@ void MainWindow::setupMenus() {
 
     auto* save_force_action = file_menu->addAction("Salva (forza)");
     connect(save_force_action, &QAction::triggered, this, &MainWindow::saveLibForce);
+
+    auto* history_menu = file_menu->addMenu("Cronologia");
+    auto* restore_workspace_action = history_menu->addAction("Ripristina ultimo autosalvataggio");
+    connect(restore_workspace_action, &QAction::triggered, this, &MainWindow::restoreFromWorkspace);
+    auto* restore_version_action = history_menu->addAction("Ripristina versione...");
+    connect(restore_version_action, &QAction::triggered, this, &MainWindow::restoreVersion);
 
     file_menu->addSeparator();
     file_menu->addAction("E&sci", this, &QWidget::close);
@@ -384,6 +423,7 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     refreshMobList();
     refreshObjectList();
     refreshZoneList();
+    refreshZoneMap();
 
     const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
                               .arg(QString::fromStdString(path.string()))
@@ -392,6 +432,8 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
                               .arg(world_.mobiles.size())
                               .arg(world_.objects.size());
     lib_label_->setText(label);
+    last_version_time_ = std::chrono::system_clock::now();
+    autosave_timer_->start();
     setStatus("Libreria caricata.");
 }
 
@@ -448,6 +490,54 @@ void MainWindow::refreshZoneList() {
     if (zone_list_->count() > 0 && zone_list_->currentRow() < 0) {
         zone_list_->setCurrentRow(0);
     }
+
+    const int previous_zone = map_zone_->currentData().toInt();
+    map_zone_->clear();
+    for (const auto& zone : world_.zones) {
+        map_zone_->addItem(QString("#%1 %2").arg(zone.num).arg(QString::fromStdString(zone.name)), zone.num);
+    }
+    if (map_zone_->count() > 0) {
+        int index = map_zone_->findData(previous_zone);
+        if (index < 0) {
+            index = 0;
+        }
+        map_zone_->setCurrentIndex(index);
+    }
+}
+
+void MainWindow::refreshZoneMap() {
+    if (!map_output_ || map_zone_->count() == 0) {
+        return;
+    }
+
+    const int zone_num = map_zone_->currentData().toInt();
+    const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
+    if (graph.nodes.empty()) {
+        map_output_->setPlainText("Nessuna stanza in questa zona.");
+        return;
+    }
+
+    std::size_t broken = 0;
+    std::size_t vertical = 0;
+    for (const auto& edge : graph.edges) {
+        if (edge.broken) {
+            ++broken;
+        }
+        if (edge.direction >= 4) {
+            ++vertical;
+        }
+    }
+
+    QString header = QString("Zona %1 %2 [%3-%4]\nStanze: %5  Archi: %6  Su/giu: %7  Rotti: %8\n\n")
+                         .arg(graph.zone_num)
+                         .arg(QString::fromStdString(graph.zone_name))
+                         .arg(graph.bottom)
+                         .arg(graph.top)
+                         .arg(graph.nodes.size())
+                         .arg(graph.edges.size())
+                         .arg(vertical)
+                         .arg(broken);
+    map_output_->setPlainText(header + QString::fromStdString(nebbie::zone_graph_to_dot(graph)));
 }
 
 void MainWindow::refreshResetList(const int zone_num) {
@@ -1094,19 +1184,77 @@ void MainWindow::createObject() {
 }
 
 void MainWindow::showValidation(const nebbie::ValidationReport& report) {
-    QString text;
-    for (const auto& issue : report.issues) {
+    validation_issues_ = report.issues;
+    validation_list_->clear();
+
+    for (std::size_t i = 0; i < validation_issues_.size(); ++i) {
+        const auto& issue = validation_issues_[i];
         const char* level = issue.severity == nebbie::ValidationSeverity::error ? "ERRORE" : "AVVISO";
-        text += QString("[%1] %2: %3\n")
-                    .arg(level)
-                    .arg(QString::fromStdString(issue.category))
-                    .arg(QString::fromStdString(issue.message));
+        const QString text = QString("[%1] %2: %3")
+                                 .arg(level)
+                                 .arg(QString::fromStdString(issue.category))
+                                 .arg(QString::fromStdString(issue.message));
+        auto* item = new QListWidgetItem(text, validation_list_);
+        item->setData(Qt::UserRole, static_cast<qlonglong>(i));
+        if (issue.severity == nebbie::ValidationSeverity::error) {
+            item->setForeground(Qt::red);
+        } else {
+            item->setForeground(QColor(180, 120, 0));
+        }
     }
-    text += QString("\n%1 errori, %2 avvisi")
-                .arg(report.error_count())
-                .arg(report.warning_count());
-    validation_log_->setPlainText(text);
+
+    if (validation_list_->count() == 0) {
+        validation_list_->addItem("Nessun problema rilevato.");
+    } else {
+        auto* summary = new QListWidgetItem(
+            QString("\n%1 errori, %2 avvisi").arg(report.error_count()).arg(report.warning_count()));
+        summary->setFlags(Qt::NoItemFlags);
+        validation_list_->addItem(summary);
+    }
+
     tabs_->setCurrentWidget(validation_tab_);
+}
+
+void MainWindow::navigateToIssue(const nebbie::ValidationIssue& issue) {
+    switch (issue.target) {
+    case nebbie::ValidationTarget::room:
+        tabs_->setCurrentIndex(0);
+        selectRoomByVnum(issue.target_vnum);
+        break;
+    case nebbie::ValidationTarget::mob:
+        tabs_->setCurrentIndex(1);
+        selectMobByVnum(issue.target_vnum);
+        break;
+    case nebbie::ValidationTarget::object:
+        tabs_->setCurrentIndex(2);
+        selectObjectByVnum(issue.target_vnum);
+        break;
+    case nebbie::ValidationTarget::zone:
+        if (zone_tab_) {
+            tabs_->setCurrentWidget(zone_tab_);
+        }
+        selectZoneByNum(issue.zone_num);
+        if (issue.reset_index >= 0 && reset_list_ && issue.reset_index < reset_list_->count()) {
+            reset_list_->setCurrentRow(issue.reset_index);
+        }
+        break;
+    case nebbie::ValidationTarget::shop:
+        setStatus(QString("Shop #%1 — usa la CLI per i dettagli shop.").arg(issue.target_vnum));
+        break;
+    default:
+        break;
+    }
+}
+
+void MainWindow::onValidationIssueActivated(QListWidgetItem* item) {
+    if (!item) {
+        return;
+    }
+    const int index = static_cast<int>(item->data(Qt::UserRole).toLongLong());
+    if (index < 0 || index >= static_cast<int>(validation_issues_.size())) {
+        return;
+    }
+    navigateToIssue(validation_issues_[static_cast<std::size_t>(index)]);
 }
 
 void MainWindow::validateLib() {
@@ -1142,10 +1290,11 @@ void MainWindow::saveLib() {
     }
 
     try {
-        nebbie::save_lib(world_, context_);
+        nebbie::save_lib_with_backup(world_, context_, lib_path_);
         markClean();
-        setStatus("Libreria salvata.");
-        QMessageBox::information(this, "Salva", "Salvataggio completato.");
+        last_version_time_ = std::chrono::system_clock::now();
+        setStatus("Libreria salvata (backup creato in .nebbie/versions).");
+        QMessageBox::information(this, "Salva", "Salvataggio completato. Backup pre-salvataggio creato.");
     } catch (const std::exception& ex) {
         QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
     }
@@ -1157,9 +1306,118 @@ void MainWindow::saveLibForce() {
         return;
     }
     try {
-        nebbie::save_lib(world_, context_);
+        nebbie::save_lib_with_backup(world_, context_, lib_path_);
         markClean();
-        setStatus("Libreria salvata (forzato).");
+        last_version_time_ = std::chrono::system_clock::now();
+        setStatus("Libreria salvata (forzato, backup creato).");
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::onAutosaveTick() {
+    if (!dirty_ || lib_path_.empty()) {
+        return;
+    }
+
+    try {
+        const auto result = nebbie::run_autosave(world_, context_, lib_path_, session_config_, last_version_time_);
+        if (result.version_created) {
+            last_version_time_ = std::chrono::system_clock::now();
+        }
+        const QString time = QDateTime::currentDateTime().toString("HH:mm:ss");
+        if (result.version_created) {
+            setStatus(QString("Autosalvataggio + versione %1 (%2)")
+                          .arg(QString::fromStdString(result.version_id))
+                          .arg(time));
+        } else {
+            setStatus(QString("Autosalvataggio workspace (%1)").arg(time));
+        }
+    } catch (const std::exception& ex) {
+        setStatus(QString("Autosalvataggio fallito: %1").arg(QString::fromUtf8(ex.what())));
+    }
+}
+
+void MainWindow::restoreFromWorkspace() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Cronologia", "Apri prima una libreria.");
+        return;
+    }
+
+    const auto workspace = nebbie::workspace_dir(lib_path_);
+    std::error_code ec;
+    if (!std::filesystem::exists(workspace, ec)) {
+        QMessageBox::information(this, "Cronologia", "Nessun autosalvataggio workspace trovato.");
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this, "Ripristina autosalvataggio",
+        "Ripristinare l'ultimo autosalvataggio workspace? Le modifiche correnti non salvate andranno perse.",
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
+        return;
+    }
+
+    try {
+        nebbie::restore_snapshot(world_, context_, workspace);
+        markDirty();
+        refreshRoomList();
+        refreshMobList();
+        refreshObjectList();
+        refreshZoneList();
+        setStatus("Ripristinato autosalvataggio workspace.");
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::restoreVersion() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Cronologia", "Apri prima una libreria.");
+        return;
+    }
+
+    const auto versions = nebbie::list_versions(lib_path_);
+    if (versions.empty()) {
+        QMessageBox::information(this, "Cronologia", "Nessuna versione salvata in .nebbie/versions.");
+        return;
+    }
+
+    QStringList labels;
+    for (const auto& version : versions) {
+        labels << QString::fromStdString(version.id + " [" + version.label + "]");
+    }
+
+    bool ok = false;
+    const QString chosen = QInputDialog::getItem(
+        this, "Ripristina versione", "Seleziona versione:", labels, 0, false, &ok);
+    if (!ok || chosen.isEmpty()) {
+        return;
+    }
+
+    const int index = labels.indexOf(chosen);
+    if (index < 0) {
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this, "Ripristina versione",
+        "Ripristinare la versione selezionata? Le modifiche correnti non salvate andranno perse.",
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
+        return;
+    }
+
+    try {
+        const auto snapshot = nebbie::versions_dir(lib_path_) / versions[static_cast<std::size_t>(index)].id;
+        nebbie::restore_snapshot(world_, context_, snapshot);
+        markDirty();
+        refreshRoomList();
+        refreshMobList();
+        refreshObjectList();
+        refreshZoneList();
+        setStatus(QString("Ripristinata versione %1.").arg(chosen));
     } catch (const std::exception& ex) {
         QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
     }

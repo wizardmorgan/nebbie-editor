@@ -1,12 +1,16 @@
 #pragma once
 
 #include "nebbie/lib_context.hpp"
+#include "nebbie/session.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
 
 #include <QMainWindow>
+#include <QTimer>
 
+#include <chrono>
 #include <filesystem>
+#include <vector>
 
 class QTabWidget;
 class QListWidget;
@@ -19,6 +23,7 @@ class QCloseEvent;
 class QWidget;
 class QComboBox;
 class QPushButton;
+class QListWidgetItem;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -32,6 +37,10 @@ public slots:
     void saveLib();
     void saveLibForce();
     void validateLib();
+    void onAutosaveTick();
+    void restoreFromWorkspace();
+    void restoreVersion();
+    void onValidationIssueActivated(QListWidgetItem* item);
 
 private slots:
     void onRoomSelected();
@@ -73,6 +82,7 @@ private:
     void refreshObjectList();
     void refreshExitList(long room_vnum);
     void refreshZoneList();
+    void refreshZoneMap();
     void refreshResetList(int zone_num);
     void updateResetFieldHints();
     void loadResetForm(const nebbie::ResetCommand& cmd);
@@ -86,6 +96,7 @@ private:
     long currentRoomVnum() const;
     void setStatus(const QString& message);
     void showValidation(const nebbie::ValidationReport& report);
+    void navigateToIssue(const nebbie::ValidationIssue& issue);
     bool confirmSaveIfDirty();
     void markDirty();
     void markClean();
@@ -143,7 +154,15 @@ private:
     QPushButton* reset_apply_ = nullptr;
     QPushButton* reset_remove_ = nullptr;
 
-    QPlainTextEdit* validation_log_ = nullptr;
+    nebbie::SessionConfig session_config_;
+    std::chrono::system_clock::time_point last_version_time_{};
+    QTimer* autosave_timer_ = nullptr;
+
+    QListWidget* validation_list_ = nullptr;
+    std::vector<nebbie::ValidationIssue> validation_issues_;
     QWidget* validation_tab_ = nullptr;
     QWidget* zone_tab_ = nullptr;
+    QWidget* map_tab_ = nullptr;
+    QComboBox* map_zone_ = nullptr;
+    QPlainTextEdit* map_output_ = nullptr;
 };
