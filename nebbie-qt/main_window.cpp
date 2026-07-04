@@ -276,6 +276,7 @@ void MainWindow::setupUi() {
     map_tab_ = new QWidget;
     auto* map_layout = new QVBoxLayout(map_tab_);
     auto* map_tabs = new QTabWidget;
+    map_tabs_ = map_tabs;
 
     auto* map_zone_page = new QWidget;
     auto* map_zone_layout = new QVBoxLayout(map_zone_page);
@@ -287,6 +288,7 @@ void MainWindow::setupUi() {
     map_broken_only_ = new QCheckBox("Solo link rotti");
     auto* map_refresh = new QPushButton("Aggiorna");
     auto* map_export_dot = new QPushButton("Esporta DOT");
+    auto* map_export_png = new QPushButton("Esporta PNG");
     map_top->addWidget(new QLabel("Zona:"));
     map_top->addWidget(map_zone_, 1);
     map_top->addWidget(new QLabel("Piano Z:"));
@@ -294,6 +296,7 @@ void MainWindow::setupUi() {
     map_top->addWidget(map_broken_only_);
     map_top->addWidget(map_refresh);
     map_top->addWidget(map_export_dot);
+    map_top->addWidget(map_export_png);
     map_zone_layout->addLayout(map_top);
 
     map_view_ = new ZoneMapWidget;
@@ -313,10 +316,14 @@ void MainWindow::setupUi() {
     world_map_broken_only_ = new QCheckBox("Solo link rotti");
     auto* world_refresh = new QPushButton("Aggiorna");
     auto* world_export_dot = new QPushButton("Esporta DOT");
+    auto* world_export_png = new QPushButton("Esporta PNG");
+    auto* world_open_zone_map = new QPushButton("Mappa stanze zona");
     world_top->addWidget(world_map_broken_only_);
+    world_top->addWidget(world_open_zone_map);
     world_top->addStretch(1);
     world_top->addWidget(world_refresh);
     world_top->addWidget(world_export_dot);
+    world_top->addWidget(world_export_png);
     map_world_layout->addLayout(world_top);
 
     world_map_view_ = new WorldZoneMapWidget;
@@ -426,6 +433,10 @@ void MainWindow::setupUi() {
         QApplication::clipboard()->setText(QString::fromStdString(nebbie::zone_graph_to_dot(graph)));
         setStatus("DOT zona copiato negli appunti.");
     });
+    connect(map_export_png, &QPushButton::clicked, this, [this]() {
+        const int zone_num = map_zone_->count() > 0 ? map_zone_->currentData().toInt() : 0;
+        exportMapPng(map_view_, QString("zona-%1.png").arg(zone_num));
+    });
     connect(world_refresh, &QPushButton::clicked, this, &MainWindow::refreshWorldZoneMap);
     connect(world_map_broken_only_, &QCheckBox::toggled, this, [this](bool enabled) {
         if (world_map_view_) {
@@ -433,20 +444,28 @@ void MainWindow::setupUi() {
         }
     });
     connect(world_map_view_, &WorldZoneMapWidget::zoneSelected, this, [this](int zone_num) {
+        selected_world_zone_ = zone_num;
         updateWorldZoneDetails(zone_num);
     });
     connect(world_map_view_, &WorldZoneMapWidget::zoneActivated, this, [this](int zone_num) {
-        if (zone_tab_) {
-            tabs_->setCurrentWidget(zone_tab_);
-        }
-        selectZoneByNum(zone_num);
+        selected_world_zone_ = zone_num;
         updateWorldZoneDetails(zone_num);
-        setStatus(QString("Mappa mondo: selezionata zona #%1.").arg(zone_num));
+        openZoneRoomMap(zone_num);
+    });
+    connect(world_open_zone_map, &QPushButton::clicked, this, [this]() {
+        if (selected_world_zone_ < 0) {
+            QMessageBox::information(this, "Mappa", "Seleziona prima una zona nella mappa mondo.");
+            return;
+        }
+        openZoneRoomMap(selected_world_zone_);
     });
     connect(world_export_dot, &QPushButton::clicked, this, [this]() {
         const nebbie::WorldZoneGraph graph = nebbie::build_world_zone_graph(world_);
         QApplication::clipboard()->setText(QString::fromStdString(nebbie::world_zone_graph_to_dot(graph)));
         setStatus("DOT mondo (zone) copiato negli appunti.");
+    });
+    connect(world_export_png, &QPushButton::clicked, this, [this]() {
+        exportMapPng(world_map_view_, QStringLiteral("mondo-zone.png"));
     });
     updateResetFieldHints();
 
@@ -661,6 +680,65 @@ void MainWindow::refreshZoneList() {
         }
         map_zone_->setCurrentIndex(index);
     }
+}
+
+void MainWindow::openZoneRoomMap(int zone_num) {
+    if (map_tab_) {
+        tabs_->setCurrentWidget(map_tab_);
+    }
+    if (map_tabs_) {
+        map_tabs_->setCurrentIndex(0);
+    }
+
+    const int zone_index = map_zone_->findData(zone_num);
+    if (zone_index >= 0) {
+        map_zone_->setCurrentIndex(zone_index);
+    }
+
+    refreshZoneMap();
+    setStatus(QString("Mappa stanze: zona #%1.").arg(zone_num));
+}
+
+void MainWindow::exportMapPng(ZoneMapWidget* view, const QString& suggested_name) {
+    if (!view) {
+        return;
+    }
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Esporta mappa PNG", suggested_name, QStringLiteral("PNG (*.png)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    if (!path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        path += QStringLiteral(".png");
+    }
+
+    if (!view->exportSceneToPng(path)) {
+        QMessageBox::warning(this, "Esporta PNG", "Impossibile esportare la mappa (vuota?).");
+        return;
+    }
+    setStatus(QString("Mappa esportata in %1").arg(path));
+}
+
+void MainWindow::exportMapPng(WorldZoneMapWidget* view, const QString& suggested_name) {
+    if (!view) {
+        return;
+    }
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Esporta mappa PNG", suggested_name, QStringLiteral("PNG (*.png)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    if (!path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        path += QStringLiteral(".png");
+    }
+
+    if (!view->exportSceneToPng(path)) {
+        QMessageBox::warning(this, "Esporta PNG", "Impossibile esportare la mappa (vuota?).");
+        return;
+    }
+    setStatus(QString("Mappa esportata in %1").arg(path));
 }
 
 void MainWindow::refreshZoneMap() {

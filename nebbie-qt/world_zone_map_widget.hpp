@@ -18,6 +18,7 @@ public:
     void clearGraph();
     void setShowBrokenOnly(bool enabled);
     void setHighlightedZone(int zone_num);
+    bool exportSceneToPng(const QString& path) const;
 
 signals:
     void zoneActivated(int zone_num);

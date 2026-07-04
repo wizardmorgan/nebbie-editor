@@ -91,6 +91,9 @@ private:
     void refreshZoneMap();
     void refreshWorldZoneMap();
     void updateMapStats();
+    void openZoneRoomMap(int zone_num);
+    void exportMapPng(ZoneMapWidget* view, const QString& suggested_name);
+    void exportMapPng(WorldZoneMapWidget* view, const QString& suggested_name);
     void updateWorldZoneDetails(int zone_num);
     void refreshResetList(int zone_num);
     void updateResetFieldHints();
@@ -172,6 +175,8 @@ private:
     QWidget* validation_tab_ = nullptr;
     QWidget* zone_tab_ = nullptr;
     QWidget* map_tab_ = nullptr;
+    QTabWidget* map_tabs_ = nullptr;
+    int selected_world_zone_ = -1;
     QComboBox* map_zone_ = nullptr;
     QComboBox* map_floor_ = nullptr;
     QCheckBox* map_broken_only_ = nullptr;

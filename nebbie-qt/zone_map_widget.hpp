@@ -21,6 +21,7 @@ public:
     std::vector<int> availableZLevels() const;
     void setShowBrokenOnly(bool enabled);
     void setHighlightedVnum(long vnum);
+    bool exportSceneToPng(const QString& path) const;
 
 signals:
     void roomActivated(long vnum);

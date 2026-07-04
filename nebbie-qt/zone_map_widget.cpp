@@ -9,6 +9,8 @@
 #include <QGraphicsScene>
 #include <QGraphicsSimpleTextItem>
 #include <QMouseEvent>
+#include <QImage>
+#include <QPainter>
 #include <QPen>
 #include <QWheelEvent>
 
@@ -421,4 +423,22 @@ void ZoneMapWidget::mouseDoubleClickEvent(QMouseEvent* event) {
 void ZoneMapWidget::wheelEvent(QWheelEvent* event) {
     const qreal factor = event->angleDelta().y() > 0 ? 1.15 : 1.0 / 1.15;
     scale(factor, factor);
+}
+
+bool ZoneMapWidget::exportSceneToPng(const QString& path) const {
+    if (!scene_ || scene_->items().isEmpty()) {
+        return false;
+    }
+
+    const QRectF bounds = scene_->itemsBoundingRect().adjusted(-48, -48, 48, 48);
+    const QSize size = bounds.size().toSize().expandedTo(QSize(640, 480));
+    QImage image(size, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing);
+    scene_->render(&painter, QRectF(QPointF(0, 0), size), bounds);
+    painter.end();
+
+    return image.save(path);
 }
