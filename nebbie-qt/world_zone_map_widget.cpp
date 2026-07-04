@@ -2,28 +2,29 @@
 
 #include <QBrush>
 #include <QFont>
+#include <QFontMetrics>
 #include <QGraphicsLineItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
-#include <QGraphicsTextItem>
+#include <QGraphicsSimpleTextItem>
 #include <QImage>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
-#include <QTextDocument>
 #include <QWheelEvent>
 
 #include <map>
 #include <queue>
 #include <unordered_map>
+#include <vector>
 
 namespace {
 
-constexpr qreal kMinZoneWidth = 152.0;
-constexpr qreal kMinZoneHeight = 86.0;
-constexpr qreal kGridStepX = 220.0;
-constexpr qreal kGridStepY = 140.0;
-constexpr qreal kNodePadding = 10.0;
+constexpr qreal kZoneBoxWidth = 172.0;
+constexpr qreal kZoneBoxHeight = 96.0;
+constexpr qreal kGridStepX = 240.0;
+constexpr qreal kGridStepY = 160.0;
+constexpr qreal kZonePadding = 8.0;
 constexpr int kDataZone = 0;
 
 struct GridPos {
@@ -38,7 +39,17 @@ struct GridPos {
     }
 };
 
-QString truncate_zone_name(const std::string& name, int max_chars = 24) {
+QFont zone_label_font() {
+    QFont font;
+    font.setPointSize(9);
+    return font;
+}
+
+qreal zone_line_height() {
+    return QFontMetrics(zone_label_font()).height();
+}
+
+QString truncate_zone_name(const std::string& name, int max_chars = 18) {
     QString qname = QString::fromStdString(name).trimmed();
     if (qname.size() <= max_chars) {
         return qname;
@@ -46,24 +57,32 @@ QString truncate_zone_name(const std::string& name, int max_chars = 24) {
     return qname.left(max_chars - 1) + QChar(0x2026);
 }
 
-QString format_zone_label(const nebbie::WorldZoneNode& zone) {
-    return QString("#%1  %2\n[%3\u2013%4]\nUsati: %5   Liberi: %6")
-        .arg(zone.zone_num)
-        .arg(truncate_zone_name(zone.name))
-        .arg(zone.bottom)
-        .arg(zone.top)
-        .arg(zone.used_count)
-        .arg(zone.free_count);
+QStringList format_zone_lines(const nebbie::WorldZoneNode& zone) {
+    return {
+        QString("#%1  %2").arg(zone.zone_num).arg(truncate_zone_name(zone.name)),
+        QString("[%1\u2013%2]").arg(zone.bottom).arg(zone.top),
+        QString("Usati: %1").arg(zone.used_count),
+        QString("Liberi: %1").arg(zone.free_count),
+    };
 }
 
-QSizeF measure_zone_label(const QString& text, qreal text_width) {
-    QTextDocument doc;
-    QFont font;
-    font.setPointSize(9);
-    doc.setDefaultFont(font);
-    doc.setTextWidth(text_width);
-    doc.setPlainText(text);
-    return QSizeF(doc.idealWidth(), doc.size().height());
+void add_zone_line_labels(QGraphicsScene* scene,
+                          const QRectF& rect,
+                          int zone_num,
+                          const QStringList& lines) {
+    const QFont font = zone_label_font();
+    const qreal line_h = zone_line_height();
+    qreal y = rect.y() + kZonePadding;
+
+    for (const QString& line : lines) {
+        auto* item = scene->addSimpleText(line);
+        item->setFont(font);
+        item->setBrush(QColor(25, 25, 25));
+        item->setPos(rect.x() + kZonePadding, y);
+        item->setZValue(3);
+        item->setData(kDataZone, zone_num);
+        y += line_h;
+    }
 }
 
 std::map<int, GridPos> layout_zone_nodes(const nebbie::WorldZoneGraph& graph) {
@@ -142,7 +161,6 @@ std::map<int, GridPos> layout_zone_nodes(const nebbie::WorldZoneGraph& graph) {
 
 struct WorldZoneMapWidget::ZoneNodeItem {
     QGraphicsRectItem* rect = nullptr;
-    QGraphicsTextItem* label = nullptr;
     int zone_num = 0;
 };
 
@@ -199,15 +217,9 @@ void WorldZoneMapWidget::rebuildScene() {
             continue;
         }
 
-        const QString label_text = format_zone_label(zone);
-        const qreal inner_width = kMinZoneWidth - (2.0 * kNodePadding);
-        const QSizeF text_size = measure_zone_label(label_text, inner_width);
-        const qreal box_w = qMax(kMinZoneWidth, text_size.width() + (2.0 * kNodePadding));
-        const qreal box_h = qMax(kMinZoneHeight, text_size.height() + (2.0 * kNodePadding));
-
         const qreal px = it->second.x * kGridStepX;
         const qreal py = it->second.y * kGridStepY;
-        const QRectF rect(px - box_w / 2.0, py - box_h / 2.0, box_w, box_h);
+        const QRectF rect(px - kZoneBoxWidth / 2.0, py - kZoneBoxHeight / 2.0, kZoneBoxWidth, kZoneBoxHeight);
 
         auto* node_item = new ZoneNodeItem;
         node_item->zone_num = zone.zone_num;
@@ -218,18 +230,7 @@ void WorldZoneMapWidget::rebuildScene() {
         node_item->rect->setZValue(2);
         node_item->rect->setData(kDataZone, zone.zone_num);
 
-        node_item->label = scene_->addText(label_text);
-        QFont label_font = node_item->label->font();
-        label_font.setPointSize(9);
-        node_item->label->setFont(label_font);
-        node_item->label->setDefaultTextColor(QColor(25, 25, 25));
-        node_item->label->setTextWidth(inner_width);
-        const QRectF text_rect = node_item->label->boundingRect();
-        const qreal text_x = rect.x() + (rect.width() - text_rect.width()) / 2.0;
-        const qreal text_y = rect.y() + (rect.height() - text_rect.height()) / 2.0;
-        node_item->label->setPos(text_x, text_y);
-        node_item->label->setZValue(3);
-        node_item->label->setData(kDataZone, zone.zone_num);
+        add_zone_line_labels(scene_, rect, zone.zone_num, format_zone_lines(zone));
 
         const QString used_list = zone.used_vnums.empty()
             ? QStringLiteral("(nessuna stanza)")
@@ -273,32 +274,14 @@ void WorldZoneMapWidget::rebuildScene() {
         auto* line = scene_->addLine(QLineF(from_it->second, to_it->second), pen);
         line->setZValue(1);
 
-        const QPointF mid = (from_it->second + to_it->second) / 2.0;
-        const QPointF delta = to_it->second - from_it->second;
-        QPointF offset(0, 0);
-        if (std::abs(delta.x()) >= std::abs(delta.y())) {
-            offset = QPointF(0, -14);
-        } else {
-            offset = QPointF(14, 0);
-        }
-
-        QString label = QString("%1 link").arg(edge.link_count);
+        QString tip = QString("Zona %1 \u2192 %2: %3 link")
+                          .arg(edge.from_zone)
+                          .arg(edge.to_zone)
+                          .arg(edge.link_count);
         if (edge.broken_count > 0) {
-            label += QString(", %1 rotti").arg(edge.broken_count);
+            tip += QString(", %1 rotti").arg(edge.broken_count);
         }
-
-        auto* edge_label = scene_->addText(label);
-        QFont edge_font = edge_label->font();
-        edge_font.setPointSize(8);
-        edge_label->setFont(edge_font);
-        edge_label->setDefaultTextColor(edge.broken_count > 0 ? QColor(170, 30, 30) : QColor(50, 70, 120));
-        const QRectF edge_bounds = edge_label->boundingRect();
-        const QPointF label_pos = mid + offset - QPointF(edge_bounds.width() / 2.0, edge_bounds.height() / 2.0);
-
-        auto* edge_bg = scene_->addRect(edge_bounds.translated(label_pos), QPen(QColor(220, 225, 235)), QBrush(QColor(255, 255, 255, 230)));
-        edge_bg->setZValue(3);
-        edge_label->setPos(label_pos);
-        edge_label->setZValue(4);
+        line->setToolTip(tip);
     }
 
     scene_->setSceneRect(scene_->itemsBoundingRect().adjusted(-100, -100, 100, 100));
