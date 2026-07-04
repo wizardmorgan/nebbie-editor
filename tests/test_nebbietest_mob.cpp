@@ -133,6 +133,16 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("resolve_lib_directory should find mudroot/lib");
             }
         }
+        if (std::filesystem::exists("vendor/nebbietest/mudroot/lib/myst.wld")) {
+            nebbie::World wld_world;
+            nebbie::load_myst_wld(wld_world, "vendor/nebbietest/mudroot/lib/myst.wld");
+            if (wld_world.rooms.size() < 100) {
+                throw std::runtime_error("expected many rooms from nebbietest myst.wld");
+            }
+            if (!wld_world.find_room(0) || !wld_world.find_room(1)) {
+                throw std::runtime_error("expected rooms #0 and #1 in nebbietest myst.wld");
+            }
+        }
 
         const nebbie::Mobile* vendor_ron = world.find_mobile(1717);
         if (vendor_ron && vendor_ron->mobtype == 'L') {

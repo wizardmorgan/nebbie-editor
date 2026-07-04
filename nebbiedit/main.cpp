@@ -42,6 +42,7 @@ void usage() {
         << "  nebbiedit validate <lib-directory>\n"
         << "  nebbiedit check mob <myst.mob-path>\n"
         << "  nebbiedit check obj <myst.obj-path>\n"
+        << "  nebbiedit check wld <myst.wld-path>\n"
         << "  nebbiedit check lib <lib-directory>\n"
         << "  nebbiedit edit <lib-directory>\n"
         << "  nebbiedit room set <lib-directory> <vnum> [--name T] [--desc T] [--sector N]\n"
@@ -425,6 +426,20 @@ bool run(int argc, char** argv) {
                     nebbie::World world;
                     nebbie::load_myst_obj(world, argv[3]);
                     std::cout << "OK: " << world.objects.size() << " objects in " << argv[3] << '\n';
+                    return true;
+                } catch (const std::exception& ex) {
+                    std::cerr << "FAILED: " << ex.what() << '\n';
+                    return false;
+                }
+            }
+            if (kind == "wld") {
+                try {
+                    nebbie::World world;
+                    nebbie::load_myst_wld(world, argv[3]);
+                    std::cout << "OK: " << world.rooms.size() << " rooms in " << argv[3] << '\n';
+                    if (const nebbie::Room* room0 = world.find_room(0)) {
+                        std::cout << "  room #0: " << room0->name << '\n';
+                    }
                     return true;
                 } catch (const std::exception& ex) {
                     std::cerr << "FAILED: " << ex.what() << '\n';
