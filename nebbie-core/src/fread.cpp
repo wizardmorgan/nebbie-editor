@@ -86,6 +86,13 @@ long fread_number(FILE* fp) {
         c = std::fgetc(fp);
     }
 
+    if (c == '=') {
+        c = std::fgetc(fp);
+        while (std::isdigit(c)) {
+            c = std::fgetc(fp);
+        }
+    }
+
     if (sign) {
         number = -number;
     }

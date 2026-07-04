@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 
 namespace nebbie {
 
@@ -29,6 +30,45 @@ FILE* open_write(const std::filesystem::path& path) {
     return fp;
 }
 
+std::string obj_context(const GameObject& obj) {
+    std::string ctx = "obj #" + std::to_string(obj.vnum);
+    if (!obj.short_descr.empty()) {
+        ctx += " (" + obj.short_descr + ")";
+    }
+    return ctx;
+}
+
+std::string trim_line(std::string line) {
+    while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) {
+        line.pop_back();
+    }
+    std::size_t start = 0;
+    while (start < line.size() && (line[start] == ' ' || line[start] == '\t')) {
+        ++start;
+    }
+    if (start > 0) {
+        line.erase(0, start);
+    }
+    return line;
+}
+
+std::vector<long> parse_obj_numbers(const GameObject& obj, const std::string& line, const char* field) {
+    try {
+        return parse_numbers(line);
+    } catch (const ParseError& ex) {
+        throw ParseError(std::string(obj_context(obj)) + ": invalid " + field + " line \"" + line
+                         + "\" (" + ex.what() + ")");
+    }
+}
+
+long read_obj_number(FILE* fp, const GameObject& obj, const char* field) {
+    try {
+        return fread_number(fp);
+    } catch (const ParseError& ex) {
+        throw ParseError(std::string(obj_context(obj)) + ": invalid " + field + " (" + ex.what() + ")");
+    }
+}
+
 char consume_section(FILE* fp) {
     int c = std::fgetc(fp);
     while (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
@@ -40,61 +80,122 @@ char consume_section(FILE* fp) {
     return static_cast<char>(c);
 }
 
+char read_obj_marker(FILE* fp) {
+    while (true) {
+        const char marker = fread_letter(fp);
+        if (marker == '*') {
+            fread_to_eol(fp);
+            continue;
+        }
+        return marker;
+    }
+}
+
+std::string peek_file_line(FILE* fp) {
+    const long pos = std::ftell(fp);
+    const std::string line = fread_line(fp);
+    std::fseek(fp, pos, SEEK_SET);
+    return line;
+}
+
+std::string read_data_line(FILE* fp) {
+    while (true) {
+        const std::string line = trim_line(fread_line(fp));
+        if (!line.empty()) {
+            return line;
+        }
+    }
+}
+
+void read_object_numeric_header(FILE* fp, GameObject& obj) {
+    const auto type_line = parse_obj_numbers(obj, read_data_line(fp), "type");
+    if (type_line.size() < 3) {
+        throw ParseError(obj_context(obj) + ": expected at least 3 type fields");
+    }
+    obj.type_flag = static_cast<int>(type_line[0]);
+    obj.extra_flags = type_line[1];
+    obj.wear_flags = type_line[2];
+
+    const auto value_line = parse_obj_numbers(obj, read_data_line(fp), "value");
+    if (value_line.size() < 4) {
+        throw ParseError(obj_context(obj) + ": expected 4 value fields");
+    }
+    for (int i = 0; i < 4; ++i) {
+        obj.value[i] = static_cast<int>(value_line[i]);
+    }
+
+    const auto econ_line = parse_obj_numbers(obj, read_data_line(fp), "weight/cost");
+    if (econ_line.size() < 3) {
+        throw ParseError(obj_context(obj) + ": expected weight, cost, and cost_per_day");
+    }
+    obj.weight = static_cast<int>(econ_line[0]);
+    obj.cost = static_cast<int>(econ_line[1]);
+    obj.cost_per_day = static_cast<int>(econ_line[2]);
+}
+
 void read_object_entry(FILE* fp, GameObject& obj) {
     obj.name = fread_string(fp);
     obj.short_descr = fread_string(fp);
     obj.description = fread_string(fp);
     obj.action_description = fread_string(fp);
 
-    obj.type_flag = static_cast<int>(fread_number(fp));
-    obj.extra_flags = fread_number(fp);
-    obj.wear_flags = fread_number(fp);
-    for (int i = 0; i < 4; ++i) {
-        obj.value[i] = static_cast<int>(fread_number(fp));
-    }
-    obj.weight = static_cast<int>(fread_number(fp));
-    obj.cost = static_cast<int>(fread_number(fp));
-    obj.cost_per_day = static_cast<int>(fread_number(fp));
-
-    char section = consume_section(fp);
-    while (section == 'E') {
-        ExtraDesc extra;
-        extra.keyword = fread_string(fp);
-        extra.description = fread_string(fp);
-        obj.extra_descs.push_back(std::move(extra));
-        section = consume_section(fp);
-    }
-
-    while (section == 'A') {
-        ObjAffect affect;
-        affect.location = static_cast<int>(fread_number(fp));
-        affect.modifier = static_cast<int>(fread_number(fp));
-        obj.affects.push_back(affect);
-        fread_to_eol(fp);
-        section = consume_section(fp);
-    }
+    read_object_numeric_header(fp, obj);
 
     obj.has_extra_flags2 = false;
     obj.extra_flags2 = 0;
-    if (section == 'F') {
-        obj.has_extra_flags2 = true;
-        obj.extra_flags2 = fread_number(fp);
+    obj.forbidden_char.clear();
+    obj.forbidden_room.clear();
+    obj.extra_descs.clear();
+    obj.affects.clear();
+
+    char section = consume_section(fp);
+    while (true) {
+        if (section == '\0' || section == '#' || section == '%') {
+            if (section == '#' || section == '%') {
+                std::ungetc(section, fp);
+            }
+            break;
+        }
+
+        if (section == 'E') {
+            ExtraDesc extra;
+            extra.keyword = fread_string(fp);
+            extra.description = fread_string(fp);
+            obj.extra_descs.push_back(std::move(extra));
+            section = consume_section(fp);
+            continue;
+        }
+
+        if (section == 'A') {
+            const auto nums = parse_obj_numbers(obj, read_data_line(fp), "affect");
+            if (nums.size() < 2) {
+                throw ParseError(obj_context(obj) + ": expected affect location and modifier");
+            }
+            ObjAffect affect;
+            affect.location = static_cast<int>(nums[0]);
+            affect.modifier = static_cast<int>(nums[1]);
+            obj.affects.push_back(affect);
+            section = consume_section(fp);
+            continue;
+        }
+
+        if (section == 'F') {
+            obj.has_extra_flags2 = true;
+            obj.extra_flags2 = read_obj_number(fp, obj, "extra_flags2");
+            fread_to_eol(fp);
+            section = consume_section(fp);
+            continue;
+        }
+
+        if (section == 'P') {
+            obj.forbidden_char = fread_string(fp);
+            obj.forbidden_room = fread_string(fp);
+            section = consume_section(fp);
+            continue;
+        }
+
         fread_to_eol(fp);
         section = consume_section(fp);
-    }
-
-    if (section == 'P') {
-        obj.forbidden_char = fread_string(fp);
-        obj.forbidden_room = fread_string(fp);
-        section = consume_section(fp);
-    }
-
-    if (section == '#') {
-        std::ungetc('#', fp);
-    } else if (section == '%') {
-        std::ungetc('%', fp);
-    } else if (section != '\0') {
-        std::ungetc(section, fp);
     }
 }
 
@@ -147,8 +248,11 @@ void load_myst_obj(World& world, const std::filesystem::path& path, ProgressCall
         progress("Loading " + path.string());
     }
 
+    long last_loaded_vnum = -1;
+    std::size_t loaded_count = 0;
+
     while (true) {
-        const char marker = fread_letter(fp);
+        const char marker = read_obj_marker(fp);
         if (marker == '%') {
             if (fread_letter(fp) != '%') {
                 throw ParseError("Malformed object file terminator");
@@ -156,7 +260,17 @@ void load_myst_obj(World& world, const std::filesystem::path& path, ProgressCall
             break;
         }
         if (marker != '#') {
-            throw ParseError("Expected # in myst.obj");
+            const std::string context = peek_file_line(fp);
+            std::string message = "Expected # in myst.obj";
+            if (last_loaded_vnum >= 0) {
+                message += " after obj #" + std::to_string(last_loaded_vnum) + " ("
+                           + std::to_string(loaded_count) + " objects loaded)";
+            }
+            message += " — found '" + std::string(1, marker) + "'";
+            if (!context.empty()) {
+                message += " near line: \"" + context + "\"";
+            }
+            throw ParseError(message);
         }
 
         if (!fread_peek_is_number(fp)) {
@@ -165,12 +279,37 @@ void load_myst_obj(World& world, const std::filesystem::path& path, ProgressCall
         }
 
         GameObject obj;
-        obj.vnum = fread_number(fp);
+        try {
+            obj.vnum = fread_number(fp);
+        } catch (const ParseError& ex) {
+            std::string message = "reading obj vnum";
+            if (last_loaded_vnum >= 0) {
+                message += " after obj #" + std::to_string(last_loaded_vnum) + " ("
+                           + std::to_string(loaded_count) + " objects loaded)";
+            }
+            const std::string nearby = peek_file_line(fp);
+            if (!nearby.empty()) {
+                message += " near line: \"" + nearby + "\"";
+            }
+            message += ": " + std::string(ex.what());
+            throw ParseError(message);
+        }
         if (obj.vnum >= 99999) {
             break;
         }
-        read_object_entry(fp, obj);
+        try {
+            read_object_entry(fp, obj);
+        } catch (const ParseError& ex) {
+            const std::string detail = ex.what();
+            if (detail.find("obj #") == std::string::npos) {
+                throw ParseError(obj_context(obj) + ": " + detail);
+            }
+            throw;
+        }
+        const long saved_vnum = obj.vnum;
         world.objects.emplace(obj.vnum, std::move(obj));
+        last_loaded_vnum = saved_vnum;
+        ++loaded_count;
     }
 
     std::fclose(fp);

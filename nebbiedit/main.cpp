@@ -41,6 +41,7 @@ void usage() {
         << "  nebbiedit guild show <name>\n"
         << "  nebbiedit validate <lib-directory>\n"
         << "  nebbiedit check mob <myst.mob-path>\n"
+        << "  nebbiedit check obj <myst.obj-path>\n"
         << "  nebbiedit check lib <lib-directory>\n"
         << "  nebbiedit edit <lib-directory>\n"
         << "  nebbiedit room set <lib-directory> <vnum> [--name T] [--desc T] [--sector N]\n"
@@ -419,12 +420,24 @@ bool run(int argc, char** argv) {
                     return false;
                 }
             }
+            if (kind == "obj") {
+                try {
+                    nebbie::World world;
+                    nebbie::load_myst_obj(world, argv[3]);
+                    std::cout << "OK: " << world.objects.size() << " objects in " << argv[3] << '\n';
+                    return true;
+                } catch (const std::exception& ex) {
+                    std::cerr << "FAILED: " << ex.what() << '\n';
+                    return false;
+                }
+            }
             if (kind == "lib") {
-                nebbie::World world;
-                nebbie::LibContext context;
-                nebbie::load_lib(world, argv[3], context, [](const std::string& msg) {
-                    std::cout << msg << '\n';
-                });
+                try {
+                    nebbie::World world;
+                    nebbie::LibContext context;
+                    nebbie::load_lib(world, argv[3], context, [](const std::string& msg) {
+                        std::cout << msg << '\n';
+                    });
                 std::cout << "OK: lib loaded from " << argv[3] << '\n';
                 std::cout << "  zones=" << world.zones.size()
                           << " rooms=" << world.rooms.size()
@@ -440,6 +453,10 @@ bool run(int argc, char** argv) {
                               << (std::filesystem::exists(root / file) ? "yes" : "no") << '\n';
                 }
                 return true;
+                } catch (const std::exception& ex) {
+                    std::cerr << "FAILED: " << ex.what() << '\n';
+                    return false;
+                }
             }
             usage();
             return false;
