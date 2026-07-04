@@ -1,11 +1,14 @@
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
+#include "nebbie/world_index.hpp"
+#include "nebbie/zone_graph.hpp"
 
 #include "cli_parse.hpp"
 #include "shell.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <cctype>
@@ -22,6 +25,8 @@ void usage() {
         << "  nebbiedit load <lib-directory>\n"
         << "  nebbiedit zone list\n"
         << "  nebbiedit zone show <zone-number>\n"
+        << "  nebbiedit zone rooms <zone-number>\n"
+        << "  nebbiedit zone graph <zone-number> [--dot]\n"
         << "  nebbiedit room show <vnum>\n"
         << "  nebbiedit mob list\n"
         << "  nebbiedit mob show <vnum>\n"
@@ -40,6 +45,8 @@ void usage() {
         << "  nebbiedit guild list\n"
         << "  nebbiedit guild show <name>\n"
         << "  nebbiedit validate <lib-directory>\n"
+        << "  nebbiedit world-index export <lib-directory> <output.json>\n"
+        << "  nebbiedit world-index suggest-room <index.json> <zone-number>\n"
         << "  nebbiedit check mob <myst.mob-path>\n"
         << "  nebbiedit check obj <myst.obj-path>\n"
         << "  nebbiedit check wld <myst.wld-path>\n"
@@ -129,6 +136,42 @@ bool run(int argc, char** argv) {
                 }
                 std::cerr << "Zone not loaded: " << num << '\n';
                 return false;
+            }
+            if (sub == "rooms" && argc >= 4) {
+                const int num = std::stoi(argv[3]);
+                const auto rooms = nebbie::rooms_in_zone(g_world, num);
+                if (rooms.empty()) {
+                    std::cerr << "No rooms in zone " << num << " (zone not loaded?)\n";
+                    return false;
+                }
+                for (long vnum : rooms) {
+                    const nebbie::Room* room = g_world.find_room(vnum);
+                    std::cout << vnum;
+                    if (room) {
+                        std::cout << " " << room->name;
+                    }
+                    std::cout << '\n';
+                }
+                return true;
+            }
+            if (sub == "graph" && argc >= 4) {
+                const int num = std::stoi(argv[3]);
+                const nebbie::ZoneGraph graph = nebbie::build_zone_graph(g_world, num);
+                if (graph.nodes.empty()) {
+                    std::cerr << "No rooms in zone " << num << " (zone not loaded?)\n";
+                    return false;
+                }
+                const bool dot = argc >= 5 && std::string(argv[4]) == "--dot";
+                if (dot) {
+                    std::cout << nebbie::zone_graph_to_dot(graph);
+                } else {
+                    std::cout << "Zone " << graph.zone_num << " " << graph.zone_name
+                              << " [" << graph.bottom << "-" << graph.top << "]\n";
+                    std::cout << "Rooms: " << graph.nodes.size()
+                              << " Edges: " << graph.edges.size() << '\n';
+                    std::cout << "Use --dot for Graphviz output.\n";
+                }
+                return true;
             }
         }
 
@@ -472,6 +515,63 @@ bool run(int argc, char** argv) {
                     std::cerr << "FAILED: " << ex.what() << '\n';
                     return false;
                 }
+            }
+            usage();
+            return false;
+        }
+
+        if (cmd == "world-index") {
+            if (argc < 3) {
+                usage();
+                return false;
+            }
+            const std::string sub = argv[2];
+            if (sub == "export") {
+                if (argc < 5) {
+                    usage();
+                    return false;
+                }
+                nebbie::World world;
+                nebbie::load_lib(world, argv[3], [](const std::string& msg) {
+                    std::cout << msg << '\n';
+                });
+                const nebbie::WorldIndex index = nebbie::build_world_index(world, "local-export");
+                const std::string json = nebbie::world_index_to_json(index);
+                std::ofstream out(argv[4]);
+                if (!out) {
+                    std::cerr << "Unable to write " << argv[4] << '\n';
+                    return false;
+                }
+                out << json;
+                std::cout << "Exported world index with " << index.zones.size() << " zone(s) to "
+                          << argv[4] << '\n';
+                return true;
+            }
+            if (sub == "suggest-room") {
+                if (argc < 5) {
+                    usage();
+                    return false;
+                }
+                std::ifstream in(argv[3]);
+                if (!in) {
+                    std::cerr << "Unable to read " << argv[3] << '\n';
+                    return false;
+                }
+                const std::string json((std::istreambuf_iterator<char>(in)),
+                                       std::istreambuf_iterator<char>());
+                const auto index = nebbie::world_index_from_json(json);
+                if (!index) {
+                    std::cerr << "Invalid world index JSON\n";
+                    return false;
+                }
+                const int zone_num = std::stoi(argv[4]);
+                const auto suggested = nebbie::suggest_room_vnum_in_zone(*index, zone_num);
+                if (!suggested) {
+                    std::cerr << "No free room vnum found in zone " << zone_num << '\n';
+                    return false;
+                }
+                std::cout << *suggested << '\n';
+                return true;
             }
             usage();
             return false;

@@ -49,7 +49,14 @@ App bundle macOS (opzionale):
 
 ```bash
 ./scripts/build.sh --macos-bundle
-open build/nebbie-qt/nebbieedit.app
+./scripts/install-macos.sh          # copia in /Applications
+open /Applications/nebbieedit.app   # primo avvio: selezione lib salvata in config
+```
+
+Installazione Linux:
+
+```bash
+./scripts/install-linux.sh ~/.local
 ```
 
 Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
@@ -72,7 +79,7 @@ Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Interfaccia grafica (Qt)
 
-Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva.
+Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva, **autosalvataggio** e cronologia versioni (`.nebbie/` nella lib).
 
 ```bash
 ./build/nebbie-qt/nebbieedit /path/to/mudroot/lib

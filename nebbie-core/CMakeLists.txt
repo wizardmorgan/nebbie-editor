@@ -15,6 +15,9 @@ add_library(nebbie-core
     src/lib_context.cpp
     src/validate.cpp
     src/edit.cpp
+    src/session.cpp
+    src/zone_graph.cpp
+    src/world_index.cpp
 )
 
 target_include_directories(nebbie-core PUBLIC include)

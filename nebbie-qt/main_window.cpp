@@ -1,22 +1,36 @@
 #include "main_window.hpp"
 
+#include "app_config.hpp"
+#include "coordinator_client.hpp"
+#include "world_zone_map_widget.hpp"
+#include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
+#include "nebbie/world_index.hpp"
+#include "nebbie/zone_graph.hpp"
 
 #include <QAction>
+#include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
+#include <QCheckBox>
+#include <QTabWidget>
 #include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QDateTime>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QNetworkAccessManager>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -28,6 +42,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <fstream>
 #include <stdexcept>
 
 namespace {
@@ -71,6 +86,8 @@ void addListItem(QListWidget* list, long vnum, const QString& label) {
 } // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+    app_config_ = nebbie::qt::read_config();
+    network_ = new QNetworkAccessManager(this);
     setupUi();
     setupMenus();
     setWindowTitle("Nebbie Editor");
@@ -264,13 +281,90 @@ void MainWindow::setupUi() {
     zone_tab_ = zone_page;
     tabs_->addTab(zone_page, "Zone");
 
-    validation_log_ = new QPlainTextEdit;
-    validation_log_->setReadOnly(true);
-    validation_log_->setPlaceholderText("Esegui Valida per vedere errori e avvisi.");
+    map_tab_ = new QWidget;
+    auto* map_layout = new QVBoxLayout(map_tab_);
+    auto* map_tabs = new QTabWidget;
+    map_tabs_ = map_tabs;
+
+    auto* map_zone_page = new QWidget;
+    auto* map_zone_layout = new QVBoxLayout(map_zone_page);
+    map_zone_layout->addWidget(
+        new QLabel("Stanze della zona. Piano Z separato; clic su su/giù cambia piano ed evidenzia la destinazione."));
+    auto* map_top = new QHBoxLayout;
+    map_zone_ = new QComboBox;
+    map_floor_ = new QComboBox;
+    map_broken_only_ = new QCheckBox("Solo link rotti");
+    auto* map_refresh = new QPushButton("Aggiorna");
+    auto* map_export_dot = new QPushButton("Esporta DOT");
+    auto* map_export_png = new QPushButton("Esporta PNG");
+    map_top->addWidget(new QLabel("Zona:"));
+    map_top->addWidget(map_zone_, 1);
+    map_top->addWidget(new QLabel("Piano Z:"));
+    map_top->addWidget(map_floor_);
+    map_top->addWidget(map_broken_only_);
+    map_top->addWidget(map_refresh);
+    map_top->addWidget(map_export_dot);
+    map_top->addWidget(map_export_png);
+    map_zone_layout->addLayout(map_top);
+
+    map_view_ = new ZoneMapWidget;
+    map_view_->setMinimumHeight(320);
+    map_zone_layout->addWidget(map_view_, 1);
+
+    map_stats_ = new QLabel;
+    map_stats_->setWordWrap(true);
+    map_zone_layout->addWidget(map_stats_);
+    map_tabs->addTab(map_zone_page, "Zona");
+
+    auto* map_world_page = new QWidget;
+    auto* map_world_layout = new QVBoxLayout(map_world_page);
+    map_world_layout->addWidget(
+        new QLabel("Collegamenti tra zone (non stanze). U=vnum usati, L=vnum liberi nel range. Clic seleziona, doppio clic apre tab Zone."));
+    auto* world_top = new QHBoxLayout;
+    world_map_broken_only_ = new QCheckBox("Solo link rotti");
+    auto* world_refresh = new QPushButton("Aggiorna");
+    auto* world_export_dot = new QPushButton("Esporta DOT");
+    auto* world_export_png = new QPushButton("Esporta PNG");
+    auto* world_open_zone_map = new QPushButton("Mappa stanze zona");
+    world_top->addWidget(world_map_broken_only_);
+    world_top->addWidget(world_open_zone_map);
+    world_top->addStretch(1);
+    world_top->addWidget(world_refresh);
+    world_top->addWidget(world_export_dot);
+    world_top->addWidget(world_export_png);
+    map_world_layout->addLayout(world_top);
+
+    world_map_view_ = new WorldZoneMapWidget;
+    world_map_view_->setMinimumHeight(320);
+    map_world_layout->addWidget(world_map_view_, 2);
+
+    world_map_details_ = new QPlainTextEdit;
+    world_map_details_->setReadOnly(true);
+    world_map_details_->setPlaceholderText("Clic su una zona per vedere vnum usati e liberi.");
+    world_map_details_->setMaximumHeight(140);
+    map_world_layout->addWidget(world_map_details_, 1);
+
+    world_map_stats_ = new QLabel;
+    world_map_stats_->setWordWrap(true);
+    map_world_layout->addWidget(world_map_stats_);
+    map_tabs->addTab(map_world_page, "Mondo (zone)");
+
+    map_layout->addWidget(map_tabs, 1);
+    tabs_->addTab(map_tab_, "Mappa");
+
     validation_tab_ = new QWidget;
     auto* validation_layout = new QVBoxLayout(validation_tab_);
-    validation_layout->addWidget(new QLabel("Risultato validazione incrociata:"));
-    validation_layout->addWidget(validation_log_);
+
+    auto* validation_top = new QHBoxLayout;
+    auto* validate_button = new QPushButton("Valida ora");
+    auto* validation_summary = new QLabel("Esegui Valida per vedere errori e avvisi. Doppio clic per andare all'entità.");
+    validation_summary->setWordWrap(true);
+    validation_top->addWidget(validate_button);
+    validation_layout->addWidget(validation_summary);
+    validation_layout->addLayout(validation_top);
+
+    validation_list_ = new QListWidget;
+    validation_layout->addWidget(validation_list_, 1);
     tabs_->addTab(validation_tab_, "Validazione");
 
     root_layout->addWidget(tabs_);
@@ -306,7 +400,86 @@ void MainWindow::setupUi() {
     connect(reset_down, &QPushButton::clicked, this, &MainWindow::moveResetDown);
     connect(reset_goto_room, &QPushButton::clicked, this, &MainWindow::goToResetRoom);
     connect(reset_goto_entity, &QPushButton::clicked, this, &MainWindow::goToResetEntity);
+    connect(validate_button, &QPushButton::clicked, this, &MainWindow::validateLib);
+    connect(validation_list_, &QListWidget::itemDoubleClicked, this, &MainWindow::onValidationIssueActivated);
+    connect(map_refresh, &QPushButton::clicked, this, &MainWindow::refreshZoneMap);
+    connect(map_zone_, &QComboBox::currentIndexChanged, this, [this](int) { refreshZoneMap(); });
+    connect(map_broken_only_, &QCheckBox::toggled, this, [this](bool enabled) {
+        if (map_view_) {
+            map_view_->setShowBrokenOnly(enabled);
+            updateMapStats();
+        }
+    });
+    connect(map_floor_, &QComboBox::currentIndexChanged, this, [this](int index) {
+        if (index < 0 || !map_view_) {
+            return;
+        }
+        map_view_->setActiveZLevel(map_floor_->currentData().toInt());
+        updateMapStats();
+    });
+    connect(map_view_, &ZoneMapWidget::roomActivated, this, [this](long vnum) {
+        tabs_->setCurrentIndex(0);
+        selectRoomByVnum(vnum);
+        setStatus(QString("Mappa: selezionata stanza #%1.").arg(vnum));
+    });
+    connect(map_view_, &ZoneMapWidget::floorLinkActivated, this, [this](long target_vnum, int target_z) {
+        const int index = map_floor_->findData(target_z);
+        if (index >= 0) {
+            map_floor_->setCurrentIndex(index);
+        } else {
+            map_view_->setActiveZLevel(target_z);
+        }
+        map_view_->setHighlightedVnum(target_vnum);
+        setStatus(QString("Mappa: piano Z=%1, evidenciata stanza #%2.").arg(target_z).arg(target_vnum));
+    });
+    connect(map_export_dot, &QPushButton::clicked, this, [this]() {
+        if (map_zone_->count() == 0) {
+            return;
+        }
+        const int zone_num = map_zone_->currentData().toInt();
+        const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
+        QApplication::clipboard()->setText(QString::fromStdString(nebbie::zone_graph_to_dot(graph)));
+        setStatus("DOT zona copiato negli appunti.");
+    });
+    connect(map_export_png, &QPushButton::clicked, this, [this]() {
+        const int zone_num = map_zone_->count() > 0 ? map_zone_->currentData().toInt() : 0;
+        exportMapPng(map_view_, QString("zona-%1.png").arg(zone_num));
+    });
+    connect(world_refresh, &QPushButton::clicked, this, &MainWindow::refreshWorldZoneMap);
+    connect(world_map_broken_only_, &QCheckBox::toggled, this, [this](bool enabled) {
+        if (world_map_view_) {
+            world_map_view_->setShowBrokenOnly(enabled);
+        }
+    });
+    connect(world_map_view_, &WorldZoneMapWidget::zoneSelected, this, [this](int zone_num) {
+        selected_world_zone_ = zone_num;
+        updateWorldZoneDetails(zone_num);
+    });
+    connect(world_map_view_, &WorldZoneMapWidget::zoneActivated, this, [this](int zone_num) {
+        selected_world_zone_ = zone_num;
+        updateWorldZoneDetails(zone_num);
+        openZoneRoomMap(zone_num);
+    });
+    connect(world_open_zone_map, &QPushButton::clicked, this, [this]() {
+        if (selected_world_zone_ < 0) {
+            QMessageBox::information(this, "Mappa", "Seleziona prima una zona nella mappa mondo.");
+            return;
+        }
+        openZoneRoomMap(selected_world_zone_);
+    });
+    connect(world_export_dot, &QPushButton::clicked, this, [this]() {
+        const nebbie::WorldZoneGraph graph = nebbie::build_world_zone_graph(world_);
+        QApplication::clipboard()->setText(QString::fromStdString(nebbie::world_zone_graph_to_dot(graph)));
+        setStatus("DOT mondo (zone) copiato negli appunti.");
+    });
+    connect(world_export_png, &QPushButton::clicked, this, [this]() {
+        exportMapPng(world_map_view_, QStringLiteral("mondo-zone.png"));
+    });
     updateResetFieldHints();
+
+    autosave_timer_ = new QTimer(this);
+    autosave_timer_->setInterval(session_config_.autosave_interval_sec * 1000);
+    connect(autosave_timer_, &QTimer::timeout, this, &MainWindow::onAutosaveTick);
 }
 
 void MainWindow::setupMenus() {
@@ -323,6 +496,12 @@ void MainWindow::setupMenus() {
     auto* save_force_action = file_menu->addAction("Salva (forza)");
     connect(save_force_action, &QAction::triggered, this, &MainWindow::saveLibForce);
 
+    auto* history_menu = file_menu->addMenu("Cronologia");
+    auto* restore_workspace_action = history_menu->addAction("Ripristina ultimo autosalvataggio");
+    connect(restore_workspace_action, &QAction::triggered, this, &MainWindow::restoreFromWorkspace);
+    auto* restore_version_action = history_menu->addAction("Ripristina versione...");
+    connect(restore_version_action, &QAction::triggered, this, &MainWindow::restoreVersion);
+
     file_menu->addSeparator();
     file_menu->addAction("E&sci", this, &QWidget::close);
 
@@ -330,6 +509,321 @@ void MainWindow::setupMenus() {
     auto* validate_action = tools_menu->addAction("&Valida");
     validate_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     connect(validate_action, &QAction::triggered, this, &MainWindow::validateLib);
+
+    auto* coordinator_menu = menuBar()->addMenu("&Coordinator");
+    auto* coordinator_config_action = coordinator_menu->addAction("Configurazione...");
+    connect(coordinator_config_action, &QAction::triggered, this, &MainWindow::configureCoordinator);
+    auto* refresh_index_action = coordinator_menu->addAction("Aggiorna indice mondo");
+    connect(refresh_index_action, &QAction::triggered, this, &MainWindow::refreshWorldIndex);
+    auto* load_index_action = coordinator_menu->addAction("Carica indice da file...");
+    connect(load_index_action, &QAction::triggered, this, &MainWindow::loadWorldIndexFromFile);
+    auto* export_index_action = coordinator_menu->addAction("Esporta indice locale (produzione finta)");
+    connect(export_index_action, &QAction::triggered, this, &MainWindow::exportLocalWorldIndex);
+    coordinator_menu->addSeparator();
+    auto* reserve_action = coordinator_menu->addAction("Prenota vnum...");
+    connect(reserve_action, &QAction::triggered, this, &MainWindow::reserveVnums);
+}
+
+void MainWindow::rememberLibPath(const std::filesystem::path& path) {
+    app_config_.lib_path = QString::fromStdString(path.string());
+    nebbie::qt::write_config(app_config_);
+}
+
+int MainWindow::preferredZoneNumForNewRoom() const {
+    if (const int zone_num = currentZoneNum(); zone_num > 0) {
+        return zone_num;
+    }
+    if (selected_world_zone_ > 0) {
+        return selected_world_zone_;
+    }
+    const long room_vnum = currentRoomVnum();
+    if (room_vnum > 0) {
+        const nebbie::Room* room = world_.find_room(room_vnum);
+        if (room && room->zone_index >= 0
+            && room->zone_index < static_cast<int>(world_.zones.size())) {
+            return world_.zones[room->zone_index].num;
+        }
+    }
+    return 0;
+}
+
+long MainWindow::suggestRoomVnum() const {
+    if (world_index_) {
+        const int zone_num = preferredZoneNumForNewRoom();
+        if (zone_num > 0) {
+            const auto suggested = nebbie::suggest_room_vnum_in_zone(*world_index_, zone_num);
+            if (suggested) {
+                return *suggested;
+            }
+        }
+        for (const auto& zone : world_index_->zones) {
+            const auto suggested = nebbie::suggest_room_vnum_in_zone(*world_index_, zone.zone_num);
+            if (suggested) {
+                return *suggested;
+            }
+        }
+    }
+    return nebbie::suggest_next_room_vnum(world_);
+}
+
+long MainWindow::suggestMobVnum() const {
+    if (world_index_) {
+        const auto suggested = nebbie::suggest_mob_vnum(*world_index_);
+        if (suggested) {
+            return *suggested;
+        }
+    }
+    return nebbie::suggest_next_mob_vnum(world_);
+}
+
+long MainWindow::suggestObjectVnum() const {
+    if (world_index_) {
+        const auto suggested = nebbie::suggest_object_vnum(*world_index_);
+        if (suggested) {
+            return *suggested;
+        }
+    }
+    return nebbie::suggest_next_object_vnum(world_);
+}
+
+bool MainWindow::warnIfRemoteVnumConflict(const QString& kind, const long vnum) const {
+    if (!world_index_) {
+        return true;
+    }
+
+    bool taken = false;
+    if (kind == QStringLiteral("room")) {
+        taken = nebbie::room_vnum_taken(*world_index_, vnum);
+    } else if (kind == QStringLiteral("mob")) {
+        taken = nebbie::mob_vnum_taken(*world_index_, vnum);
+    } else if (kind == QStringLiteral("object")) {
+        taken = nebbie::object_vnum_taken(*world_index_, vnum);
+    }
+    if (!taken) {
+        return true;
+    }
+
+    const auto answer = QMessageBox::warning(
+        const_cast<MainWindow*>(this),
+        "Conflitto indice mondo",
+        QString("Il vnum %1 risulta occupato o prenotato nell'indice remoto.\n"
+                "Vuoi crearlo comunque nella libreria locale?")
+            .arg(vnum),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    return answer == QMessageBox::Yes;
+}
+
+void MainWindow::configureCoordinator() {
+    QDialog dialog(this);
+    dialog.setWindowTitle("Configurazione coordinator");
+
+    auto* form = new QFormLayout(&dialog);
+    auto* index_url = new QLineEdit(app_config_.index_url);
+    auto* coordinator_url = new QLineEdit(app_config_.coordinator_url);
+    auto* coordinator_token = new QLineEdit(app_config_.coordinator_token);
+    coordinator_token->setEchoMode(QLineEdit::Password);
+    auto* builder_name = new QLineEdit(app_config_.builder_name);
+
+    form->addRow("URL indice mondo:", index_url);
+    form->addRow("URL API coordinator:", coordinator_url);
+    form->addRow("Token API:", coordinator_token);
+    form->addRow("Nome builder:", builder_name);
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    app_config_.index_url = index_url->text().trimmed();
+    app_config_.coordinator_url = coordinator_url->text().trimmed();
+    app_config_.coordinator_token = coordinator_token->text().trimmed();
+    app_config_.builder_name = builder_name->text().trimmed();
+    if (!nebbie::qt::write_config(app_config_)) {
+        QMessageBox::warning(this, "Coordinator", "Impossibile salvare la configurazione.");
+        return;
+    }
+    setStatus("Configurazione coordinator salvata.");
+}
+
+void MainWindow::refreshWorldIndex() {
+    if (app_config_.index_url.isEmpty()) {
+        QMessageBox::information(this, "Indice mondo",
+                                 "Configura index_url in Coordinator → Configurazione.");
+        return;
+    }
+
+    setStatus("Scarico indice mondo...");
+    const auto result = nebbie::qt::fetch_coordinator_sync(*network_,
+                                                           app_config_.index_url,
+                                                           app_config_.coordinator_url,
+                                                           app_config_.coordinator_token);
+    if (!result.ok || !result.index) {
+        QMessageBox::warning(this, "Indice mondo", result.error);
+        setStatus("Errore scaricamento indice mondo.");
+        return;
+    }
+
+    world_index_ = *result.index;
+    setStatus(QString("Indice mondo aggiornato: %1 zone, %2 prenotazioni attive.")
+                  .arg(world_index_->zones.size())
+                  .arg(world_index_->reservations.size()));
+}
+
+void MainWindow::loadWorldIndexFromFile() {
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Carica world-index.json", QString(), "JSON (*.json);;Tutti i file (*)");
+    if (path.isEmpty()) {
+        return;
+    }
+
+    std::ifstream in(path.toStdString());
+    if (!in) {
+        QMessageBox::warning(this, "Indice mondo", "Impossibile leggere il file.");
+        return;
+    }
+    const std::string json((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const auto parsed = nebbie::world_index_from_json(json);
+    if (!parsed) {
+        QMessageBox::warning(this, "Indice mondo", "JSON indice mondo non valido.");
+        return;
+    }
+
+    world_index_ = *parsed;
+    if (!app_config_.coordinator_url.isEmpty() && !app_config_.coordinator_token.isEmpty()) {
+        const auto result = nebbie::qt::fetch_coordinator_sync(*network_,
+                                                               QString(),
+                                                               app_config_.coordinator_url,
+                                                               app_config_.coordinator_token,
+                                                               false);
+        if (result.ok) {
+            nebbie::merge_reservations(*world_index_, result.reservations);
+        }
+    }
+
+    setStatus(QString("Indice mondo caricato da file: %1 zone.").arg(world_index_->zones.size()));
+}
+
+void MainWindow::exportLocalWorldIndex() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Indice mondo", "Apri prima una libreria locale.");
+        return;
+    }
+
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Esporta indice mondo locale", QStringLiteral("world-index.json"),
+        "JSON (*.json);;Tutti i file (*)");
+    if (path.isEmpty()) {
+        return;
+    }
+
+    const nebbie::WorldIndex index = nebbie::build_world_index(world_, "local-export");
+    std::ofstream out(path.toStdString());
+    if (!out) {
+        QMessageBox::warning(this, "Indice mondo", "Impossibile scrivere il file.");
+        return;
+    }
+    out << nebbie::world_index_to_json(index);
+    setStatus(QString("Esportato indice locale con %1 zone in %2.")
+                  .arg(index.zones.size())
+                  .arg(path));
+}
+
+void MainWindow::reserveVnums() {
+    if (app_config_.coordinator_url.isEmpty() || app_config_.coordinator_token.isEmpty()) {
+        QMessageBox::information(this, "Prenotazioni",
+                                 "Configura coordinator_url e coordinator_token.");
+        return;
+    }
+    if (app_config_.builder_name.isEmpty()) {
+        QMessageBox::information(this, "Prenotazioni", "Configura builder_name.");
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle("Prenota vnum");
+    auto* form = new QFormLayout(&dialog);
+
+    auto* zone_num = new QSpinBox;
+    zone_num->setRange(0, 99999);
+    zone_num->setValue(preferredZoneNumForNewRoom());
+    auto* kind = new QComboBox;
+    kind->addItem("Stanze", QStringLiteral("room"));
+    kind->addItem("Mob", QStringLiteral("mob"));
+    kind->addItem("Oggetti", QStringLiteral("object"));
+    auto* start_vnum = new QSpinBox;
+    start_vnum->setRange(1, 999999);
+    start_vnum->setValue(static_cast<int>(suggestRoomVnum()));
+    auto* end_vnum = new QSpinBox;
+    end_vnum->setRange(1, 999999);
+    end_vnum->setValue(start_vnum->value());
+    auto* note = new QLineEdit;
+
+    form->addRow("Zona:", zone_num);
+    form->addRow("Tipo:", kind);
+    form->addRow("Vnum inizio:", start_vnum);
+    form->addRow("Vnum fine:", end_vnum);
+    form->addRow("Nota:", note);
+
+    auto update_suggestion = [this, kind, zone_num, start_vnum, end_vnum]() {
+        long suggested = 1;
+        if (kind->currentData().toString() == QStringLiteral("room")) {
+            if (world_index_ && zone_num->value() > 0) {
+                const auto value =
+                    nebbie::suggest_room_vnum_in_zone(*world_index_, zone_num->value());
+                suggested = value ? *value : nebbie::suggest_next_room_vnum(world_);
+            } else {
+                suggested = suggestRoomVnum();
+            }
+        } else if (kind->currentData().toString() == QStringLiteral("mob")) {
+            suggested = suggestMobVnum();
+        } else {
+            suggested = suggestObjectVnum();
+        }
+        start_vnum->setValue(static_cast<int>(suggested));
+        if (end_vnum->value() < start_vnum->value()) {
+            end_vnum->setValue(start_vnum->value());
+        }
+    };
+    connect(kind, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, update_suggestion);
+    connect(zone_num, QOverload<int>::of(&QSpinBox::valueChanged), &dialog, update_suggestion);
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    nebbie::WorldIndexReservation reservation;
+    reservation.builder = app_config_.builder_name.toStdString();
+    reservation.zone_num = zone_num->value();
+    reservation.kind = kind->currentData().toString().toStdString();
+    reservation.start_vnum = start_vnum->value();
+    reservation.end_vnum = end_vnum->value();
+    reservation.note = note->text().toStdString();
+    reservation.status = "active";
+
+    QString error;
+    if (!nebbie::qt::post_reservation_sync(*network_,
+                                           app_config_.coordinator_url,
+                                           app_config_.coordinator_token,
+                                           reservation,
+                                           &error)) {
+        QMessageBox::warning(this, "Prenotazioni", error.isEmpty() ? "Invio fallito." : error);
+        return;
+    }
+
+    refreshWorldIndex();
+    setStatus(QString("Prenotati vnum %1-%2 per %3.")
+                  .arg(reservation.start_vnum)
+                  .arg(reservation.end_vnum)
+                  .arg(QString::fromStdString(reservation.kind)));
 }
 
 void MainWindow::openLibPath(const QString& path) {
@@ -340,6 +834,7 @@ void MainWindow::openLibPath(const QString& path) {
         const std::filesystem::path requested(path.toStdString());
         const std::filesystem::path resolved = nebbie::resolve_lib_directory(requested);
         loadLib(resolved);
+        rememberLibPath(resolved);
         if (resolved != requested) {
             setStatus(QString("Libreria risolta in: %1").arg(QString::fromStdString(resolved.string())));
         }
@@ -368,6 +863,45 @@ void MainWindow::openLib() {
     openLibPath(dir);
 }
 
+void MainWindow::openStartupLib() {
+    const QString saved = nebbie::qt::read_lib_path();
+    if (nebbie::qt::lib_path_exists(saved)) {
+        openLibPath(saved);
+        return;
+    }
+
+    if (!saved.isEmpty()) {
+        promptForLibPath(QString("Il percorso salvato non è più valido:\n%1").arg(saved));
+        return;
+    }
+
+    promptForLibPath(QString(
+        "Benvenuto in Nebbie Editor.\n\n"
+        "Seleziona la cartella della libreria di gioco (mudroot o mudroot/lib).\n"
+        "Il percorso verrà salvato in:\n%1")
+                         .arg(nebbie::qt::default_config_path()));
+}
+
+bool MainWindow::promptForLibPath(const QString& reason) {
+    if (!reason.isEmpty()) {
+        QMessageBox::information(this, "Libreria Nebbie", reason);
+    }
+
+    const QString initial = nebbie::qt::read_lib_path();
+    const QString dir = QFileDialog::getExistingDirectory(
+        this,
+        "Seleziona libreria Nebbie (mudroot o mudroot/lib)",
+        initial.isEmpty() ? QDir::homePath() : initial,
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (dir.isEmpty()) {
+        setStatus("Nessuna libreria selezionata. Usa File → Apri libreria.");
+        return false;
+    }
+
+    openLibPath(dir);
+    return !lib_path_.empty();
+}
+
 void MainWindow::loadLib(const std::filesystem::path& path) {
     world_.clear();
     context_ = {};
@@ -384,6 +918,8 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     refreshMobList();
     refreshObjectList();
     refreshZoneList();
+    refreshZoneMap();
+    refreshWorldZoneMap();
 
     const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
                               .arg(QString::fromStdString(path.string()))
@@ -392,6 +928,8 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
                               .arg(world_.mobiles.size())
                               .arg(world_.objects.size());
     lib_label_->setText(label);
+    last_version_time_ = std::chrono::system_clock::now();
+    autosave_timer_->start();
     setStatus("Libreria caricata.");
 }
 
@@ -448,6 +986,247 @@ void MainWindow::refreshZoneList() {
     if (zone_list_->count() > 0 && zone_list_->currentRow() < 0) {
         zone_list_->setCurrentRow(0);
     }
+
+    const int previous_zone = map_zone_->currentData().toInt();
+    map_zone_->clear();
+    for (const auto& zone : world_.zones) {
+        map_zone_->addItem(QString("#%1 %2").arg(zone.num).arg(QString::fromStdString(zone.name)), zone.num);
+    }
+    if (map_zone_->count() > 0) {
+        int index = map_zone_->findData(previous_zone);
+        if (index < 0) {
+            index = 0;
+        }
+        map_zone_->setCurrentIndex(index);
+    }
+}
+
+void MainWindow::openZoneRoomMap(int zone_num) {
+    if (map_tab_) {
+        tabs_->setCurrentWidget(map_tab_);
+    }
+    if (map_tabs_) {
+        map_tabs_->setCurrentIndex(0);
+    }
+
+    const int zone_index = map_zone_->findData(zone_num);
+    if (zone_index >= 0) {
+        map_zone_->setCurrentIndex(zone_index);
+    }
+
+    refreshZoneMap();
+    setStatus(QString("Mappa stanze: zona #%1.").arg(zone_num));
+}
+
+void MainWindow::exportMapPng(ZoneMapWidget* view, const QString& suggested_name) {
+    if (!view) {
+        return;
+    }
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Esporta mappa PNG", suggested_name, QStringLiteral("PNG (*.png)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    if (!path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        path += QStringLiteral(".png");
+    }
+
+    if (!view->exportSceneToPng(path)) {
+        QMessageBox::warning(this, "Esporta PNG", "Impossibile esportare la mappa (vuota?).");
+        return;
+    }
+    setStatus(QString("Mappa esportata in %1").arg(path));
+}
+
+void MainWindow::exportMapPng(WorldZoneMapWidget* view, const QString& suggested_name) {
+    if (!view) {
+        return;
+    }
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Esporta mappa PNG", suggested_name, QStringLiteral("PNG (*.png)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    if (!path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        path += QStringLiteral(".png");
+    }
+
+    if (!view->exportSceneToPng(path)) {
+        QMessageBox::warning(this, "Esporta PNG", "Impossibile esportare la mappa (vuota?).");
+        return;
+    }
+    setStatus(QString("Mappa esportata in %1").arg(path));
+}
+
+void MainWindow::refreshZoneMap() {
+    if (!map_view_ || map_zone_->count() == 0) {
+        return;
+    }
+
+    const int zone_num = map_zone_->currentData().toInt();
+    const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
+    if (graph.nodes.empty()) {
+        map_view_->clearGraph();
+        map_floor_->clear();
+        if (map_stats_) {
+            map_stats_->setText("Nessuna stanza in questa zona.");
+        }
+        return;
+    }
+
+    map_view_->setGraph(graph);
+
+    const int previous_floor = map_floor_->currentData().toInt();
+    map_floor_->clear();
+    for (int level : map_view_->availableZLevels()) {
+        map_floor_->addItem(QString("Z = %1").arg(level), level);
+    }
+    int floor_index = map_floor_->findData(previous_floor);
+    if (floor_index < 0) {
+        floor_index = 0;
+    }
+    map_floor_->setCurrentIndex(floor_index);
+    map_view_->setActiveZLevel(map_floor_->currentData().toInt());
+    if (map_broken_only_) {
+        map_view_->setShowBrokenOnly(map_broken_only_->isChecked());
+    }
+    updateMapStats();
+}
+
+void MainWindow::refreshWorldZoneMap() {
+    if (!world_map_view_) {
+        return;
+    }
+
+    const nebbie::WorldZoneGraph graph = nebbie::build_world_zone_graph(world_);
+    if (graph.zones.empty()) {
+        world_map_view_->clearGraph();
+        if (world_map_details_) {
+            world_map_details_->clear();
+        }
+        if (world_map_stats_) {
+            world_map_stats_->setText("Nessuna zona caricata.");
+        }
+        return;
+    }
+
+    world_map_view_->setGraph(graph);
+    if (world_map_broken_only_) {
+        world_map_view_->setShowBrokenOnly(world_map_broken_only_->isChecked());
+    }
+
+    int total_used = 0;
+    int total_free = 0;
+    int broken_edges = 0;
+    for (const auto& zone : graph.zones) {
+        total_used += zone.used_count;
+        total_free += zone.free_count;
+    }
+    for (const auto& edge : graph.edges) {
+        if (edge.broken_count > 0) {
+            ++broken_edges;
+        }
+    }
+
+    if (world_map_stats_) {
+        world_map_stats_->setText(
+            QString("Zone: %1 | collegamenti inter-zona: %2 | link rotti: %3 | vnum stanza usati: %4 | vnum liberi: %5")
+                .arg(graph.zones.size())
+                .arg(graph.edges.size())
+                .arg(broken_edges)
+                .arg(total_used)
+                .arg(total_free));
+    }
+}
+
+void MainWindow::updateWorldZoneDetails(int zone_num) {
+    if (!world_map_details_) {
+        return;
+    }
+
+    const nebbie::Zone* zone = nebbie::find_zone(world_, zone_num);
+    if (!zone) {
+        world_map_details_->setPlainText(QString("Zona #%1 non trovata.").arg(zone_num));
+        return;
+    }
+
+    const nebbie::WorldZoneNode node = nebbie::build_world_zone_node(world_, *zone);
+    QString used_text;
+    if (node.used_vnums.empty()) {
+        used_text = "(nessuna stanza nel range)";
+    } else if (node.used_vnums.size() <= 40) {
+        QStringList parts;
+        for (long vnum : node.used_vnums) {
+            parts << QString::number(vnum);
+        }
+        used_text = parts.join(", ");
+    } else {
+        used_text = QString("%1 … %2 (%3 vnum, elenco troncato)")
+                        .arg(node.used_vnums.front())
+                        .arg(node.used_vnums.back())
+                        .arg(node.used_count);
+    }
+
+    const QString details = QString("Zona #%1 %2\nRange vnum: %3-%4\n\nStanze usate (%5):\n%6\n\nVnum liberi (%7):\n%8")
+                                .arg(node.zone_num)
+                                .arg(QString::fromStdString(node.name))
+                                .arg(node.bottom)
+                                .arg(node.top)
+                                .arg(node.used_count)
+                                .arg(used_text)
+                                .arg(node.free_count)
+                                .arg(QString::fromStdString(nebbie::format_vnum_ranges(node.free_ranges, 20)));
+    world_map_details_->setPlainText(details);
+    if (world_map_view_) {
+        world_map_view_->setHighlightedZone(zone_num);
+    }
+}
+
+void MainWindow::updateMapStats() {
+    if (!map_stats_ || map_zone_->count() == 0) {
+        return;
+    }
+
+    const int zone_num = map_zone_->currentData().toInt();
+    const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
+    if (graph.nodes.empty()) {
+        return;
+    }
+
+    const nebbie::ZoneZLayout z_layout = nebbie::compute_zone_z_levels(graph);
+    const int active_z = map_view_ ? map_view_->activeZLevel() : 0;
+
+    std::size_t on_floor = 0;
+    std::size_t broken = 0;
+    std::size_t vertical = 0;
+    for (const auto& node : graph.nodes) {
+        const auto it = z_layout.levels.find(node.vnum);
+        if (it != z_layout.levels.end() && it->second == active_z) {
+            ++on_floor;
+        }
+    }
+    for (const auto& edge : graph.edges) {
+        if (edge.broken) {
+            ++broken;
+        }
+        if (edge.direction >= 4) {
+            ++vertical;
+        }
+    }
+
+    map_stats_->setText(QString("Zona %1 %2 [%3-%4] — piano Z=%5: %6 stanze | totali: %7 | archi: %8 | su/giù: %9 | rotti: %10")
+                            .arg(graph.zone_num)
+                            .arg(QString::fromStdString(graph.zone_name))
+                            .arg(graph.bottom)
+                            .arg(graph.top)
+                            .arg(active_z)
+                            .arg(on_floor)
+                            .arg(graph.nodes.size())
+                            .arg(graph.edges.size())
+                            .arg(vertical)
+                            .arg(broken));
 }
 
 void MainWindow::refreshResetList(const int zone_num) {
@@ -1028,9 +1807,12 @@ void MainWindow::createRoom() {
     }
 
     bool ok = false;
-    const int suggested = static_cast<int>(nebbie::suggest_next_room_vnum(world_));
+    const int suggested = static_cast<int>(suggestRoomVnum());
     const int vnum = QInputDialog::getInt(this, "Nuova stanza", "Vnum stanza:", suggested, 1, 999999, 1, &ok);
     if (!ok) {
+        return;
+    }
+    if (!warnIfRemoteVnumConflict(QStringLiteral("room"), vnum)) {
         return;
     }
 
@@ -1052,9 +1834,12 @@ void MainWindow::createMob() {
     }
 
     bool ok = false;
-    const int suggested = static_cast<int>(nebbie::suggest_next_mob_vnum(world_));
+    const int suggested = static_cast<int>(suggestMobVnum());
     const int vnum = QInputDialog::getInt(this, "Nuovo mob", "Vnum mobile:", suggested, 1, 99999, 1, &ok);
     if (!ok) {
+        return;
+    }
+    if (!warnIfRemoteVnumConflict(QStringLiteral("mob"), vnum)) {
         return;
     }
 
@@ -1076,9 +1861,12 @@ void MainWindow::createObject() {
     }
 
     bool ok = false;
-    const int suggested = static_cast<int>(nebbie::suggest_next_object_vnum(world_));
+    const int suggested = static_cast<int>(suggestObjectVnum());
     const int vnum = QInputDialog::getInt(this, "Nuovo oggetto", "Vnum oggetto:", suggested, 1, 99999, 1, &ok);
     if (!ok) {
+        return;
+    }
+    if (!warnIfRemoteVnumConflict(QStringLiteral("object"), vnum)) {
         return;
     }
 
@@ -1094,19 +1882,77 @@ void MainWindow::createObject() {
 }
 
 void MainWindow::showValidation(const nebbie::ValidationReport& report) {
-    QString text;
-    for (const auto& issue : report.issues) {
+    validation_issues_ = report.issues;
+    validation_list_->clear();
+
+    for (std::size_t i = 0; i < validation_issues_.size(); ++i) {
+        const auto& issue = validation_issues_[i];
         const char* level = issue.severity == nebbie::ValidationSeverity::error ? "ERRORE" : "AVVISO";
-        text += QString("[%1] %2: %3\n")
-                    .arg(level)
-                    .arg(QString::fromStdString(issue.category))
-                    .arg(QString::fromStdString(issue.message));
+        const QString text = QString("[%1] %2: %3")
+                                 .arg(level)
+                                 .arg(QString::fromStdString(issue.category))
+                                 .arg(QString::fromStdString(issue.message));
+        auto* item = new QListWidgetItem(text, validation_list_);
+        item->setData(Qt::UserRole, static_cast<qlonglong>(i));
+        if (issue.severity == nebbie::ValidationSeverity::error) {
+            item->setForeground(Qt::red);
+        } else {
+            item->setForeground(QColor(180, 120, 0));
+        }
     }
-    text += QString("\n%1 errori, %2 avvisi")
-                .arg(report.error_count())
-                .arg(report.warning_count());
-    validation_log_->setPlainText(text);
+
+    if (validation_list_->count() == 0) {
+        validation_list_->addItem("Nessun problema rilevato.");
+    } else {
+        auto* summary = new QListWidgetItem(
+            QString("\n%1 errori, %2 avvisi").arg(report.error_count()).arg(report.warning_count()));
+        summary->setFlags(Qt::NoItemFlags);
+        validation_list_->addItem(summary);
+    }
+
     tabs_->setCurrentWidget(validation_tab_);
+}
+
+void MainWindow::navigateToIssue(const nebbie::ValidationIssue& issue) {
+    switch (issue.target) {
+    case nebbie::ValidationTarget::room:
+        tabs_->setCurrentIndex(0);
+        selectRoomByVnum(issue.target_vnum);
+        break;
+    case nebbie::ValidationTarget::mob:
+        tabs_->setCurrentIndex(1);
+        selectMobByVnum(issue.target_vnum);
+        break;
+    case nebbie::ValidationTarget::object:
+        tabs_->setCurrentIndex(2);
+        selectObjectByVnum(issue.target_vnum);
+        break;
+    case nebbie::ValidationTarget::zone:
+        if (zone_tab_) {
+            tabs_->setCurrentWidget(zone_tab_);
+        }
+        selectZoneByNum(issue.zone_num);
+        if (issue.reset_index >= 0 && reset_list_ && issue.reset_index < reset_list_->count()) {
+            reset_list_->setCurrentRow(issue.reset_index);
+        }
+        break;
+    case nebbie::ValidationTarget::shop:
+        setStatus(QString("Shop #%1 — usa la CLI per i dettagli shop.").arg(issue.target_vnum));
+        break;
+    default:
+        break;
+    }
+}
+
+void MainWindow::onValidationIssueActivated(QListWidgetItem* item) {
+    if (!item) {
+        return;
+    }
+    const int index = static_cast<int>(item->data(Qt::UserRole).toLongLong());
+    if (index < 0 || index >= static_cast<int>(validation_issues_.size())) {
+        return;
+    }
+    navigateToIssue(validation_issues_[static_cast<std::size_t>(index)]);
 }
 
 void MainWindow::validateLib() {
@@ -1142,10 +1988,11 @@ void MainWindow::saveLib() {
     }
 
     try {
-        nebbie::save_lib(world_, context_);
+        nebbie::save_lib_with_backup(world_, context_, lib_path_);
         markClean();
-        setStatus("Libreria salvata.");
-        QMessageBox::information(this, "Salva", "Salvataggio completato.");
+        last_version_time_ = std::chrono::system_clock::now();
+        setStatus("Libreria salvata (backup creato in .nebbie/versions).");
+        QMessageBox::information(this, "Salva", "Salvataggio completato. Backup pre-salvataggio creato.");
     } catch (const std::exception& ex) {
         QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
     }
@@ -1157,9 +2004,118 @@ void MainWindow::saveLibForce() {
         return;
     }
     try {
-        nebbie::save_lib(world_, context_);
+        nebbie::save_lib_with_backup(world_, context_, lib_path_);
         markClean();
-        setStatus("Libreria salvata (forzato).");
+        last_version_time_ = std::chrono::system_clock::now();
+        setStatus("Libreria salvata (forzato, backup creato).");
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::onAutosaveTick() {
+    if (!dirty_ || lib_path_.empty()) {
+        return;
+    }
+
+    try {
+        const auto result = nebbie::run_autosave(world_, context_, lib_path_, session_config_, last_version_time_);
+        if (result.version_created) {
+            last_version_time_ = std::chrono::system_clock::now();
+        }
+        const QString time = QDateTime::currentDateTime().toString("HH:mm:ss");
+        if (result.version_created) {
+            setStatus(QString("Autosalvataggio + versione %1 (%2)")
+                          .arg(QString::fromStdString(result.version_id))
+                          .arg(time));
+        } else {
+            setStatus(QString("Autosalvataggio workspace (%1)").arg(time));
+        }
+    } catch (const std::exception& ex) {
+        setStatus(QString("Autosalvataggio fallito: %1").arg(QString::fromUtf8(ex.what())));
+    }
+}
+
+void MainWindow::restoreFromWorkspace() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Cronologia", "Apri prima una libreria.");
+        return;
+    }
+
+    const auto workspace = nebbie::workspace_dir(lib_path_);
+    std::error_code ec;
+    if (!std::filesystem::exists(workspace, ec)) {
+        QMessageBox::information(this, "Cronologia", "Nessun autosalvataggio workspace trovato.");
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this, "Ripristina autosalvataggio",
+        "Ripristinare l'ultimo autosalvataggio workspace? Le modifiche correnti non salvate andranno perse.",
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
+        return;
+    }
+
+    try {
+        nebbie::restore_snapshot(world_, context_, workspace);
+        markDirty();
+        refreshRoomList();
+        refreshMobList();
+        refreshObjectList();
+        refreshZoneList();
+        setStatus("Ripristinato autosalvataggio workspace.");
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::restoreVersion() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Cronologia", "Apri prima una libreria.");
+        return;
+    }
+
+    const auto versions = nebbie::list_versions(lib_path_);
+    if (versions.empty()) {
+        QMessageBox::information(this, "Cronologia", "Nessuna versione salvata in .nebbie/versions.");
+        return;
+    }
+
+    QStringList labels;
+    for (const auto& version : versions) {
+        labels << QString::fromStdString(version.id + " [" + version.label + "]");
+    }
+
+    bool ok = false;
+    const QString chosen = QInputDialog::getItem(
+        this, "Ripristina versione", "Seleziona versione:", labels, 0, false, &ok);
+    if (!ok || chosen.isEmpty()) {
+        return;
+    }
+
+    const int index = labels.indexOf(chosen);
+    if (index < 0) {
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this, "Ripristina versione",
+        "Ripristinare la versione selezionata? Le modifiche correnti non salvate andranno perse.",
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
+        return;
+    }
+
+    try {
+        const auto snapshot = nebbie::versions_dir(lib_path_) / versions[static_cast<std::size_t>(index)].id;
+        nebbie::restore_snapshot(world_, context_, snapshot);
+        markDirty();
+        refreshRoomList();
+        refreshMobList();
+        refreshObjectList();
+        refreshZoneList();
+        setStatus(QString("Ripristinata versione %1.").arg(chosen));
     } catch (const std::exception& ex) {
         QMessageBox::critical(this, "Errore", QString::fromUtf8(ex.what()));
     }
