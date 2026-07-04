@@ -79,6 +79,14 @@ export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
 
 Usa `./scripts/build.sh --macos-bundle` e poi `open build/nebbie-qt/nebbieedit.app`.
 
+L'icona dell'app è in `nebbie-qt/icons/` (`nebbieedit.icns`). Per rigenerarla da sorgente:
+
+```bash
+pip install pillow   # se non già installato
+python3 scripts/make-macos-icon.py
+./scripts/build.sh --macos-bundle
+```
+
 ### Linux: solo CLI senza Qt
 
 ```bash

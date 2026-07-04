@@ -57,7 +57,7 @@ jobs:
       - name: Configure and build
         run: |
           export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-          ./scripts/build.sh
+          ./scripts/build.sh --macos-bundle
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
