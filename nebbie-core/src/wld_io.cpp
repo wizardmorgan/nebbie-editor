@@ -34,6 +34,26 @@ FILE* open_write(const std::filesystem::path& path) {
     return fp;
 }
 
+std::string trim_line(std::string line) {
+    while (!line.empty() && (line.back() == ' ' || line.back() == '\t')) {
+        line.pop_back();
+    }
+    std::size_t start = 0;
+    while (start < line.size() && (line[start] == ' ' || line[start] == '\t')) {
+        ++start;
+    }
+    return line.substr(start);
+}
+
+std::string read_data_line(FILE* fp) {
+    while (true) {
+        const std::string line = trim_line(fread_line(fp));
+        if (!line.empty() && line != "~") {
+            return line;
+        }
+    }
+}
+
 void read_exit(FILE* fp, Room& room, int direction) {
     Exit exit;
     exit.direction = direction;
@@ -55,26 +75,54 @@ void read_exit(FILE* fp, Room& room, int direction) {
     room.exits.push_back(exit);
 }
 
+void read_room_zone_line(FILE* fp, Room& room) {
+    const auto nums = parse_numbers(read_data_line(fp));
+    if (nums.size() < 3) {
+        throw ParseError("Room " + std::to_string(room.vnum) + ": expected zone, flags, and sector");
+    }
+
+  (void)nums[0];
+    room.room_flags = nums[1];
+    const long sector_field = nums[2];
+
+    room.tele_time = 0;
+    room.tele_targ = 0;
+    room.tele_mask = 0;
+    room.tele_cnt = 0;
+
+    if (sector_field != -1) {
+        room.sector_type = static_cast<int>(sector_field);
+        return;
+    }
+
+    if (nums.size() >= 7) {
+        room.tele_time = nums[3];
+        room.tele_targ = nums[4];
+        room.tele_mask = nums[5];
+        room.sector_type = static_cast<int>(nums[6]);
+        if (nums.size() >= 8) {
+            room.tele_cnt = nums[6];
+            room.sector_type = static_cast<int>(nums[7]);
+        }
+        return;
+    }
+
+    if (nums.size() == 4) {
+        room.tele_time = nums[3];
+        room.sector_type = 0;
+        return;
+    }
+
+    throw ParseError("Room " + std::to_string(room.vnum) + ": invalid teleport zone line");
+}
+
 void read_room_body(FILE* fp, Room& room, World& world) {
     room.name = fread_string(fp);
     room.description = fread_string(fp);
 
-    (void)fread_number(fp);
+    read_room_zone_line(fp, room);
 
-    room.room_flags = fread_number(fp);
-    long sector = fread_number(fp);
-    room.sector_type = sector;
-
-    if (sector == -1) {
-        room.tele_time = fread_number(fp);
-        room.tele_targ = fread_number(fp);
-        room.tele_mask = fread_number(fp);
-        if (room.tele_mask & TELE_COUNT) {
-            room.tele_cnt = fread_number(fp);
-        }
-        room.sector_type = fread_number(fp);
-        sector = room.sector_type;
-    }
+    const long sector = room.sector_type;
 
     if (sector == SECT_WATER_NOSWIM || sector == SECT_UNDERWATER) {
         room.river_speed = fread_if_number(fp);
@@ -82,7 +130,7 @@ void read_room_body(FILE* fp, Room& room, World& world) {
     }
 
     if (room.room_flags & TUNNEL) {
-        room.moblim = fread_number(fp);
+        room.moblim = fread_if_number(fp);
         if (room.moblim < 1) {
             room.moblim = 1;
         }
@@ -128,6 +176,34 @@ void read_room_body(FILE* fp, Room& room, World& world) {
     throw ParseError("Room " + std::to_string(room.vnum) + " missing terminating S");
 }
 
+char read_wld_marker(FILE* fp) {
+    while (true) {
+        int c = std::fgetc(fp);
+        if (c == EOF) {
+            return '\0';
+        }
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            continue;
+        }
+        if (c == '*') {
+            fread_to_eol(fp);
+            continue;
+        }
+        return static_cast<char>(c);
+    }
+}
+
+bool peek_is_eof(FILE* fp) {
+    const long pos = std::ftell(fp);
+    int c = std::fgetc(fp);
+    while (c != EOF && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
+        c = std::fgetc(fp);
+    }
+    const bool eof = (c == EOF);
+    std::fseek(fp, pos, SEEK_SET);
+    return eof;
+}
+
 } // namespace
 
 void load_myst_wld(World& world, const std::filesystem::path& path, ProgressCallback progress) {
@@ -137,19 +213,29 @@ void load_myst_wld(World& world, const std::filesystem::path& path, ProgressCall
     }
 
     while (true) {
-        if (fread_letter(fp) != '#') {
-            throw ParseError("Expected # in myst.wld");
+        const char marker = read_wld_marker(fp);
+        if (marker == '\0') {
+            break;
+        }
+        if (marker != '#') {
+            fread_to_eol(fp);
+            continue;
+        }
+
+        if (!fread_peek_is_number(fp)) {
+            fread_to_eol(fp);
+            continue;
         }
 
         const long vnum = fread_number(fp);
-        if (vnum == 0) {
+        if (vnum == 0 && peek_is_eof(fp)) {
             break;
         }
 
         Room room;
         room.vnum = vnum;
         read_room_body(fp, room, world);
-        world.rooms[vnum] = room;
+        world.rooms[vnum] = std::move(room);
     }
 
     std::fclose(fp);
