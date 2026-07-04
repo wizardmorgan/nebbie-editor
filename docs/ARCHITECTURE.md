@@ -35,3 +35,6 @@ Vedi [PLATFORM.md](PLATFORM.md).
 7. **GUI minima** — `nebbieedit` (Qt): browse + edit + save
 8. **Editor reset zona** — tab Zone in GUI, API `add_zone_reset` / `update_zone_reset`
 9. Validazione integrazione con boot del server
+10. **Caricamento lib nebbietest** — parser mob/obj/wld estesi, GUI macOS
+
+Prossime fasi: vedi [ROADMAP.md](ROADMAP.md) (mappa zone, validazione GUI, editing avanzato).

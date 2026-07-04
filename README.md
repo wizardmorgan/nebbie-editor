@@ -109,6 +109,7 @@ docs/          Documentazione tecnica
 - Server ufficiale: https://github.com/NebbieArcane/Server
 - Fork di test: https://github.com/wizardmorgan/nebbietest
 - Piattaforme: [docs/PLATFORM.md](docs/PLATFORM.md)
+- Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## Licenza
 
