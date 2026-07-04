@@ -1,12 +1,15 @@
 #include "main_window.hpp"
 
 #include "app_config.hpp"
+#include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/zone_graph.hpp"
 
 #include <QAction>
+#include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QColor>
 #include <QComboBox>
@@ -270,18 +273,24 @@ void MainWindow::setupUi() {
 
     map_tab_ = new QWidget;
     auto* map_layout = new QVBoxLayout(map_tab_);
-    map_layout->addWidget(new QLabel("Prototipo mappa zona (Graphviz DOT). Archi su/giù in blu tratteggiato."));
+    map_layout->addWidget(new QLabel("Mappa interattiva della zona. Trascina per spostare, rotella per zoom, doppio clic sulla stanza."));
     auto* map_top = new QHBoxLayout;
     map_zone_ = new QComboBox;
     auto* map_refresh = new QPushButton("Aggiorna mappa");
+    auto* map_export_dot = new QPushButton("Esporta DOT");
     map_top->addWidget(new QLabel("Zona:"));
     map_top->addWidget(map_zone_, 1);
     map_top->addWidget(map_refresh);
+    map_top->addWidget(map_export_dot);
     map_layout->addLayout(map_top);
-    map_output_ = new QPlainTextEdit;
-    map_output_->setReadOnly(true);
-    map_output_->setPlaceholderText("Seleziona una zona e premi Aggiorna mappa.");
-    map_layout->addWidget(map_output_, 1);
+
+    map_view_ = new ZoneMapWidget;
+    map_view_->setMinimumHeight(360);
+    map_layout->addWidget(map_view_, 1);
+
+    map_stats_ = new QLabel;
+    map_stats_->setWordWrap(true);
+    map_layout->addWidget(map_stats_);
     tabs_->addTab(map_tab_, "Mappa");
 
     validation_tab_ = new QWidget;
@@ -336,6 +345,20 @@ void MainWindow::setupUi() {
     connect(validation_list_, &QListWidget::itemDoubleClicked, this, &MainWindow::onValidationIssueActivated);
     connect(map_refresh, &QPushButton::clicked, this, &MainWindow::refreshZoneMap);
     connect(map_zone_, &QComboBox::currentIndexChanged, this, [this](int) { refreshZoneMap(); });
+    connect(map_view_, &ZoneMapWidget::roomActivated, this, [this](long vnum) {
+        tabs_->setCurrentIndex(0);
+        selectRoomByVnum(vnum);
+        setStatus(QString("Mappa: selezionata stanza #%1.").arg(vnum));
+    });
+    connect(map_export_dot, &QPushButton::clicked, this, [this]() {
+        if (map_zone_->count() == 0) {
+            return;
+        }
+        const int zone_num = map_zone_->currentData().toInt();
+        const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
+        QApplication::clipboard()->setText(QString::fromStdString(nebbie::zone_graph_to_dot(graph)));
+        setStatus("DOT copiato negli appunti.");
+    });
     updateResetFieldHints();
 
     autosave_timer_ = new QTimer(this);
@@ -551,16 +574,21 @@ void MainWindow::refreshZoneList() {
 }
 
 void MainWindow::refreshZoneMap() {
-    if (!map_output_ || map_zone_->count() == 0) {
+    if (!map_view_ || map_zone_->count() == 0) {
         return;
     }
 
     const int zone_num = map_zone_->currentData().toInt();
     const nebbie::ZoneGraph graph = nebbie::build_zone_graph(world_, zone_num);
     if (graph.nodes.empty()) {
-        map_output_->setPlainText("Nessuna stanza in questa zona.");
+        map_view_->clearGraph();
+        if (map_stats_) {
+            map_stats_->setText("Nessuna stanza in questa zona.");
+        }
         return;
     }
+
+    map_view_->setGraph(graph);
 
     std::size_t broken = 0;
     std::size_t vertical = 0;
@@ -573,16 +601,17 @@ void MainWindow::refreshZoneMap() {
         }
     }
 
-    QString header = QString("Zona %1 %2 [%3-%4]\nStanze: %5  Archi: %6  Su/giu: %7  Rotti: %8\n\n")
-                         .arg(graph.zone_num)
-                         .arg(QString::fromStdString(graph.zone_name))
-                         .arg(graph.bottom)
-                         .arg(graph.top)
-                         .arg(graph.nodes.size())
-                         .arg(graph.edges.size())
-                         .arg(vertical)
-                         .arg(broken);
-    map_output_->setPlainText(header + QString::fromStdString(nebbie::zone_graph_to_dot(graph)));
+    if (map_stats_) {
+        map_stats_->setText(QString("Zona %1 %2 [%3-%4] — stanze: %5, archi: %6, su/giù: %7, rotti: %8")
+                              .arg(graph.zone_num)
+                              .arg(QString::fromStdString(graph.zone_name))
+                              .arg(graph.bottom)
+                              .arg(graph.top)
+                              .arg(graph.nodes.size())
+                              .arg(graph.edges.size())
+                              .arg(vertical)
+                              .arg(broken));
+    }
 }
 
 void MainWindow::refreshResetList(const int zone_num) {

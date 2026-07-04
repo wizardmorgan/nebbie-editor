@@ -24,6 +24,7 @@ class QWidget;
 class QComboBox;
 class QPushButton;
 class QListWidgetItem;
+class ZoneMapWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -167,5 +168,6 @@ private:
     QWidget* zone_tab_ = nullptr;
     QWidget* map_tab_ = nullptr;
     QComboBox* map_zone_ = nullptr;
-    QPlainTextEdit* map_output_ = nullptr;
+    ZoneMapWidget* map_view_ = nullptr;
+    QLabel* map_stats_ = nullptr;
 };
