@@ -10,12 +10,13 @@
 - [x] Autosalvataggio workspace (10s) + versioni (60s) in `.nebbie/`
 - [x] Backup pre-salvataggio, cronologia ripristino
 - [x] Validazione GUI con navigazione al vnum
-- [x] **Prototipo mappa** su master: tab Mappa (DOT) + `nebbiedit zone graph --dot`
+- [x] **Prototipo mappa**: tab Mappa + `nebbiedit zone graph --dot`
+- [x] **Mappa interattiva (MVP)**: `QGraphicsView`, zoom/pan, doppio clic → stanza
 - [x] **Config libreria predefinita**: file testo `nebbieedit.conf` + dialogo al primo avvio
 
 ## Prossimo passo immediato
 
-**Mappa interattiva (Fase 6b)** — `QGraphicsView` con layout 2D, piani Z per su/giù, doppio clic sulla stanza.
+**Mappa Fase 6c** — piani Z per su/giù, filtri link rotti, layout migliorato.
 
 ## Fase 6 — Mappa zone
 
