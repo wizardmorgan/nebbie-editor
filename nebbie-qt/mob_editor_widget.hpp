@@ -24,7 +24,7 @@ private:
     void updateTypeDependentFields();
 
     QLineEdit* name_ = nullptr;
-    QLineEdit* short_descr_ = nullptr;
+    QTextEdit* short_descr_ = nullptr;
     QTextEdit* long_descr_ = nullptr;
     QTextEdit* description_ = nullptr;
 

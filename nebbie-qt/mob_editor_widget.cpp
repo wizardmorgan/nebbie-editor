@@ -11,12 +11,31 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
 namespace {
+
+void configureLineField(QLineEdit* field) {
+    field->setMinimumWidth(420);
+    field->setMinimumHeight(30);
+    field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+}
+
+void configureShortTextField(QTextEdit* field) {
+    field->setMinimumHeight(56);
+    field->setMaximumHeight(80);
+    field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    field->setLineWrapMode(QTextEdit::WidgetWidth);
+}
+
+void configureTextField(QTextEdit* field, const int min_height) {
+    field->setMinimumHeight(min_height);
+    field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+}
 
 QWidget* makeDiceRow(QSpinBox*& number, QSpinBox*& size, QSpinBox*& plus, QWidget* parent) {
     auto* row = new QWidget(parent);
@@ -30,11 +49,11 @@ QWidget* makeDiceRow(QSpinBox*& number, QSpinBox*& size, QSpinBox*& plus, QWidge
     plus = new QSpinBox(row);
     plus->setRange(-999999, 999999);
 
-    layout->addWidget(new QLabel("num", row));
+    layout->addWidget(new QLabel("numero", row));
     layout->addWidget(number);
     layout->addWidget(new QLabel("d", row));
     layout->addWidget(size);
-    layout->addWidget(new QLabel("plus", row));
+    layout->addWidget(new QLabel("bonus", row));
     layout->addWidget(plus);
     layout->addStretch();
     return row;
@@ -102,15 +121,17 @@ MobEditorWidget::MobEditorWidget(QWidget* parent) : QWidget(parent) {
     auto* text_tab = new QWidget;
     auto* text_form = new QFormLayout(text_tab);
     name_ = new QLineEdit;
-    short_descr_ = new QLineEdit;
+    configureLineField(name_);
+    short_descr_ = new QTextEdit;
+    configureShortTextField(short_descr_);
     long_descr_ = new QTextEdit;
-    long_descr_->setMinimumHeight(70);
+    configureTextField(long_descr_, 110);
     description_ = new QTextEdit;
-    description_->setMinimumHeight(90);
-    text_form->addRow("Keywords (name~):", name_);
+    configureTextField(description_, 130);
+    text_form->addRow("Parole chiave (name~):", name_);
     text_form->addRow("Nome breve:", short_descr_);
     text_form->addRow("Descrizione lunga:", long_descr_);
-    text_form->addRow("Descrizione (look):", description_);
+    text_form->addRow("Descrizione (guardando):", description_);
     tabs->addTab(text_tab, "Testo");
 
     auto* combat_tab = new QWidget;
@@ -135,14 +156,14 @@ MobEditorWidget::MobEditorWidget(QWidget* parent) : QWidget(parent) {
     hit_bonus_layout->addStretch();
     auto* dam_row = makeDiceRow(dam_num_, dam_size_, dam_plus_, combat_tab);
 
-    combat_form->addRow("Tipo mob:", mobtype_);
-    combat_form->addRow("Attacchi (mult_att):", mult_att_);
+    combat_form->addRow("Tipo mobile:", mobtype_);
+    combat_form->addRow("Numero attacchi (mult_att):", mult_att_);
     combat_form->addRow("Livello:", level_);
     combat_form->addRow("Hitroll:", hitroll_);
-    combat_form->addRow("Armor class:", ac_);
-    combat_form->addRow("Hit dice (tipo S):", hit_dice_row_);
-    combat_form->addRow("Hit bonus (tipo A/N/B/L):", hit_bonus_row_);
-    combat_form->addRow("Damage dice:", dam_row);
+    combat_form->addRow("Classe armatura:", ac_);
+    combat_form->addRow("Dadi vita (tipo S):", hit_dice_row_);
+    combat_form->addRow("Bonus vita (tipo A/N/B/L):", hit_bonus_row_);
+    combat_form->addRow("Dadi danno:", dam_row);
     tabs->addTab(combat_tab, "Combattimento");
 
     auto* economy_tab = new QWidget;
@@ -172,9 +193,9 @@ MobEditorWidget::MobEditorWidget(QWidget* parent) : QWidget(parent) {
     auto* behavior_layout = new QVBoxLayout(behavior_tab);
     act_flags_ = new FlagGroupWidget(nebbie::mob_act_flags(), behavior_tab);
     affected_flags_ = new FlagGroupWidget(nebbie::mob_affected_flags(), behavior_tab);
-    behavior_layout->addWidget(new QLabel("Action flags (act)"));
+    behavior_layout->addWidget(new QLabel("Flag di azione (act)"));
     behavior_layout->addWidget(act_flags_);
-    behavior_layout->addWidget(new QLabel("Affect flags (affected_by)"));
+    behavior_layout->addWidget(new QLabel("Flag di affetto (affected_by)"));
     behavior_layout->addWidget(affected_flags_);
     tabs->addTab(new QScrollArea, "Comportamento");
     {
@@ -191,7 +212,7 @@ MobEditorWidget::MobEditorWidget(QWidget* parent) : QWidget(parent) {
     fillCombo(default_pos_, nebbie::mob_position_choices());
     sex_ = new QComboBox;
     fillCombo(sex_, nebbie::mob_sex_choices());
-    extended_sex_ = new QCheckBox("Riga estesa con immune / meta-immune / suscept");
+    extended_sex_ = new QCheckBox("Riga estesa con resistenze / immunita' / suscept");
     immunity_panel_ = new QWidget(resist_tab);
     auto* immunity_layout = new QVBoxLayout(immunity_panel_);
     immune_flags_ = new FlagGroupWidget(nebbie::mob_immunity_flags(), immunity_panel_);
@@ -206,7 +227,7 @@ MobEditorWidget::MobEditorWidget(QWidget* parent) : QWidget(parent) {
 
     auto* resist_form = new QFormLayout;
     resist_form->addRow("Posizione:", position_);
-    resist_form->addRow("Posizione default:", default_pos_);
+    resist_form->addRow("Posizione predefinita:", default_pos_);
     resist_form->addRow("Sesso:", sex_);
     resist_form->addRow(extended_sex_);
     resist_layout->addLayout(resist_form);
@@ -221,10 +242,12 @@ MobEditorWidget::MobEditorWidget(QWidget* parent) : QWidget(parent) {
     auto* sound_tab = new QWidget;
     auto* sound_form = new QFormLayout(sound_tab);
     sounds_ = new QLineEdit;
+    configureLineField(sounds_);
     distant_sounds_ = new QLineEdit;
+    configureLineField(distant_sounds_);
     extra_sounds_ = new QTextEdit;
     extra_sounds_->setPlaceholderText("Una stringa suono per riga (dopo suoni locali e distanti)");
-    extra_sounds_->setMinimumHeight(80);
+    configureTextField(extra_sounds_, 100);
     sound_form->addRow("Suoni locali:", sounds_);
     sound_form->addRow("Suoni distanti:", distant_sounds_);
     sound_form->addRow("Suoni extra:", extra_sounds_);
@@ -255,7 +278,7 @@ void MobEditorWidget::updateTypeDependentFields() {
 
 void MobEditorWidget::loadFromMobile(const nebbie::Mobile& mob) {
     name_->setText(QString::fromStdString(mob.name));
-    short_descr_->setText(QString::fromStdString(mob.short_descr));
+    short_descr_->setPlainText(QString::fromStdString(mob.short_descr));
     long_descr_->setPlainText(QString::fromStdString(mob.long_descr));
     description_->setPlainText(QString::fromStdString(mob.description));
 
@@ -302,7 +325,7 @@ void MobEditorWidget::loadFromMobile(const nebbie::Mobile& mob) {
 
 void MobEditorWidget::saveToMobile(nebbie::Mobile& mob) const {
     mob.name = name_->text().toStdString();
-    mob.short_descr = short_descr_->text().toStdString();
+    mob.short_descr = short_descr_->toPlainText().toStdString();
     mob.long_descr = long_descr_->toPlainText().toStdString();
     mob.description = description_->toPlainText().toStdString();
 

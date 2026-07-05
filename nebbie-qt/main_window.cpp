@@ -69,7 +69,8 @@ EntityPageWidgets makeEntityPage(QWidget* editor, const QString& create_label) {
     splitter->addWidget(widgets.list);
     splitter->addWidget(editor);
     splitter->setStretchFactor(0, 1);
-    splitter->setStretchFactor(1, 3);
+    splitter->setStretchFactor(1, 4);
+    splitter->setSizes({220, 680});
     layout->addWidget(splitter, 1);
     return widgets;
 }

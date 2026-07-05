@@ -35,7 +35,7 @@ private:
     void setComboIntValue(QComboBox* combo, int value) const;
 
     QLineEdit* name_ = nullptr;
-    QLineEdit* short_descr_ = nullptr;
+    QTextEdit* short_descr_ = nullptr;
     QTextEdit* description_ = nullptr;
     QTextEdit* action_description_ = nullptr;
 
