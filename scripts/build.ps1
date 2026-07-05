@@ -31,10 +31,10 @@ $CmakeArgs = @(
 
 if ($Generator) {
     $CmakeArgs += @("-G", $Generator)
-} elseif (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
-  if (Get-Command cl -ErrorAction SilentlyContinue) {
-    $CmakeArgs += @("-G", "Visual Studio 17 2022", "-A", "x64", "-T", "v142")
-  }
+} elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
+    $CmakeArgs += @("-G", "Ninja")
+} elseif (Get-Command cl -ErrorAction SilentlyContinue) {
+    $CmakeArgs += @("-G", "Visual Studio 17 2022", "-A", "x64")
 }
 
 if ($QtPrefix) {
@@ -45,8 +45,12 @@ Write-Host "==> cmake $($CmakeArgs -join ' ')"
 & cmake @CmakeArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+$CacheFile = Join-Path $BuildDir "CMakeCache.txt"
+$IsMultiConfig = (Test-Path $CacheFile) -and
+    (Select-String -Path $CacheFile -Pattern "^CMAKE_CONFIGURATION_TYPES:" -Quiet)
+
 $BuildConfigArgs = @("--build", $BuildDir)
-if ($Generator -match "Visual Studio" -or $CmakeArgs -contains "Visual Studio 17 2022") {
+if ($IsMultiConfig) {
     $BuildConfigArgs += @("--config", $BuildType)
 }
 
@@ -56,8 +60,8 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if ($Test) {
     $CTestArgs = @("--test-dir", $BuildDir, "--output-on-failure")
-    if ($BuildType -eq "Release" -and ($Generator -match "Visual Studio" -or $CmakeArgs -contains "Visual Studio 17 2022")) {
-        $CTestArgs += @("-C", "Release")
+    if ($IsMultiConfig) {
+        $CTestArgs += @("-C", $BuildType)
     }
     Write-Host "==> ctest $($CTestArgs -join ' ')"
     & ctest @CTestArgs
