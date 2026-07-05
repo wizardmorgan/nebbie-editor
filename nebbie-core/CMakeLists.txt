@@ -1,5 +1,6 @@
 add_library(nebbie-core
     src/fread.cpp
+    src/file_io.cpp
     src/world.cpp
     src/zon_io.cpp
     src/wld_io.cpp
@@ -27,3 +28,7 @@ add_library(nebbie-core
 
 target_include_directories(nebbie-core PUBLIC include)
 target_compile_features(nebbie-core PUBLIC cxx_std_17)
+
+if(MINGW)
+    target_link_libraries(nebbie-core PUBLIC stdc++fs)
+endif()

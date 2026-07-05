@@ -1,4 +1,5 @@
 #include "app_config.hpp"
+#include "path_util.hpp"
 
 #include "nebbie/io.hpp"
 
@@ -104,7 +105,7 @@ bool lib_path_exists(const QString& path) {
     }
 
     std::error_code ec;
-    const std::filesystem::path candidate(path.toStdString());
+    const std::filesystem::path candidate = path_from_qstring(path);
     if (!std::filesystem::exists(candidate, ec)) {
         return false;
     }

@@ -1,6 +1,6 @@
 # Nebbie Editor
 
-Editor di mondo per [Nebbie Arcane](https://github.com/NebbieArcane/Server), sviluppato per **Linux** e **macOS**.
+Editor di mondo per [Nebbie Arcane](https://github.com/NebbieArcane/Server), sviluppato per **Linux**, **macOS** e **Windows**.
 
 Questo repository è indipendente dal codice del server: non servono permessi sull'organizzazione `NebbieArcane`. Il riferimento di formato è il codice in `NebbieArcane/Server` (`src/db.cpp`, `src/db.hpp`).
 
@@ -19,12 +19,31 @@ Questo repository è indipendente dal codice del server: non servono permessi su
 | `myst.pos` | Pose | Lettura/scrittura |
 | `myst.gui` | Gilde | Lettura/scrittura |
 
-## Build (Linux e macOS)
+## Build (Linux, macOS, Windows)
 
 ```bash
-./scripts/install-deps.sh    # dipendenze di sistema
+./scripts/install-deps.sh    # dipendenze di sistema (Linux/macOS)
 ./scripts/build.sh --test    # configure, build, test
 ```
+
+### Windows
+
+```powershell
+.\scripts\install-deps.ps1
+$env:CMAKE_PREFIX_PATH = "C:\Qt\6.5.3\msvc2019_64"   # adatta alla tua installazione Qt
+.\scripts\build.ps1 -Test
+.\build\nebbiedit\Release\nebbiedit.exe info tests\fixtures
+.\build\nebbie-qt\Release\nebbieedit.exe tests\fixtures
+```
+
+Pacchetto portatile:
+
+```powershell
+.\scripts\package-windows.ps1
+# dist\nebbie-editor_<version>_windows.zip
+```
+
+Config libreria predefinita (GUI): `%APPDATA%\Nebbie\nebbieedit.conf`
 
 ### Linux (Debian/Ubuntu)
 
@@ -72,7 +91,7 @@ sudo apt-get install -f
 open dist/nebbie-editor_*_macos.dmg
 ```
 
-**Windows non è supportato** (solo Linux e macOS). Vedi [docs/PLATFORM.md](docs/PLATFORM.md).
+Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Uso CLI (MVP)
 

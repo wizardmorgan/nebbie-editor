@@ -1,6 +1,8 @@
 #include "main_window.hpp"
 #include "app_config.hpp"
+#include "path_util.hpp"
 
+#include <QCoreApplication>
 #include <QApplication>
 #include <QIcon>
 #include <QTimer>
@@ -14,8 +16,9 @@ int main(int argc, char** argv) {
     MainWindow window;
     window.show();
 
-    if (argc >= 2) {
-        window.openLibPath(QString::fromUtf8(argv[1]));
+    const QStringList args = QCoreApplication::arguments();
+    if (args.size() >= 2) {
+        window.openLibPath(args.at(1));
     } else {
         QTimer::singleShot(0, &window, &MainWindow::openStartupLib);
     }

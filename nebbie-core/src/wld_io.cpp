@@ -2,6 +2,7 @@
 #include "nebbie/overlay_io.hpp"
 
 #include "nebbie/fread.hpp"
+#include "nebbie/file_io.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -14,26 +15,6 @@ constexpr long SECT_WATER_NOSWIM = 7;
 constexpr long SECT_UNDERWATER = 8;
 constexpr long TUNNEL = 64;
 constexpr long TELE_COUNT = 1;
-
-FILE* open_read(const std::filesystem::path& path) {
-    FILE* fp = std::fopen(path.string().c_str(), "r");
-    if (!fp) {
-        throw ParseError("Unable to open world file: " + path.string());
-    }
-    return fp;
-}
-
-FILE* open_write(const std::filesystem::path& path) {
-    std::error_code ec;
-    if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path(), ec);
-    }
-    FILE* fp = std::fopen(path.string().c_str(), "w");
-    if (!fp) {
-        throw ParseError("Unable to write world file: " + path.string());
-    }
-    return fp;
-}
 
 std::string trim_line(std::string line) {
     while (!line.empty() && (line.back() == ' ' || line.back() == '\t')) {
@@ -263,7 +244,7 @@ bool peek_is_eof(FILE* fp) {
 } // namespace
 
 void load_myst_wld(World& world, const std::filesystem::path& path, ProgressCallback progress) {
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "world file");
     if (progress) {
         progress("Loading " + path.string());
     }
@@ -302,7 +283,7 @@ void save_myst_wld(const World& world, const std::filesystem::path& path, Progre
         progress("Saving " + path.string());
     }
 
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "world file");
     for (const auto& [vnum, room] : world.rooms) {
         (void)vnum;
         std::fprintf(fp, "#%ld\n", room.vnum);
@@ -313,13 +294,13 @@ void save_myst_wld(const World& world, const std::filesystem::path& path, Progre
 }
 
 void save_room_overlay(const Room& room, const World& world, const std::filesystem::path& path) {
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "world file");
     write_room_body(fp, room, world);
     std::fclose(fp);
 }
 
 void load_room_overlay(World& world, const long vnum, const std::filesystem::path& path) {
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "world file");
     Room room;
     room.vnum = vnum;
     read_room_body(fp, room, world);

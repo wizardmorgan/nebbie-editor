@@ -13,6 +13,7 @@ Installs CMake, a C++17 compiler, and optionally Qt 6 for nebbieedit.
 
 Linux (Debian/Ubuntu): build-essential, cmake, qt6-base-dev
 macOS (Homebrew): cmake, qt@6
+Windows: Visual Studio 2022 Build Tools, CMake, Qt 6 (MSVC) — see install-deps.ps1
 EOF
 }
 
@@ -59,8 +60,12 @@ EOF
 case "$uname_s" in
     Linux) install_linux ;;
     Darwin) install_macos ;;
+    MINGW*|MSYS*|CYGWIN*)
+        echo "On Windows use: .\\scripts\\install-deps.ps1" >&2
+        exit 1
+        ;;
     *)
-        echo "Unsupported OS: $uname_s (supported: Linux, Darwin/macOS)" >&2
+        echo "Unsupported OS: $uname_s (supported: Linux, Darwin/macOS, Windows via PowerShell)" >&2
         exit 1
         ;;
 esac

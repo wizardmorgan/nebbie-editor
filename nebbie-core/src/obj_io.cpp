@@ -2,6 +2,7 @@
 #include "nebbie/overlay_io.hpp"
 
 #include "nebbie/fread.hpp"
+#include "nebbie/file_io.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -10,26 +11,6 @@
 namespace nebbie {
 
 namespace {
-
-FILE* open_read(const std::filesystem::path& path) {
-    FILE* fp = std::fopen(path.string().c_str(), "r");
-    if (!fp) {
-        throw ParseError("Unable to open object file: " + path.string());
-    }
-    return fp;
-}
-
-FILE* open_write(const std::filesystem::path& path) {
-    std::error_code ec;
-    if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path(), ec);
-    }
-    FILE* fp = std::fopen(path.string().c_str(), "w");
-    if (!fp) {
-        throw ParseError("Unable to write object file: " + path.string());
-    }
-    return fp;
-}
 
 std::string obj_context(const GameObject& obj) {
     std::string ctx = "obj #" + std::to_string(obj.vnum);
@@ -289,7 +270,7 @@ void write_object_entry(FILE* fp, const GameObject& obj) {
 void load_myst_obj(World& world, const std::filesystem::path& path, ProgressCallback progress) {
     world.objects.clear();
 
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "object file");
     if (progress) {
         progress("Loading " + path.string());
     }
@@ -362,7 +343,7 @@ void load_myst_obj(World& world, const std::filesystem::path& path, ProgressCall
 }
 
 void save_myst_obj(const World& world, const std::filesystem::path& path, ProgressCallback progress) {
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "object file");
     if (progress) {
         progress("Writing " + path.string());
     }
@@ -377,13 +358,13 @@ void save_myst_obj(const World& world, const std::filesystem::path& path, Progre
 }
 
 void save_object_overlay(const GameObject& obj, const std::filesystem::path& path) {
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "object file");
     write_object_body(fp, obj);
     std::fclose(fp);
 }
 
 void load_object_overlay(World& world, const long vnum, const std::filesystem::path& path) {
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "object file");
     GameObject obj;
     obj.vnum = vnum;
     read_object_entry(fp, obj);

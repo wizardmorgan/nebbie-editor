@@ -672,6 +672,48 @@ bool run(int argc, char** argv) {
 
 } // namespace
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <vector>
+
+namespace {
+
+std::vector<std::string> utf8_argv_storage;
+std::vector<char*> utf8_argv_ptrs;
+
+void prepare_utf8_argv(const int argc, wchar_t** wargv) {
+    utf8_argv_storage.clear();
+    utf8_argv_ptrs.clear();
+    utf8_argv_storage.reserve(static_cast<std::size_t>(argc));
+    utf8_argv_ptrs.reserve(static_cast<std::size_t>(argc));
+
+    for (int i = 0; i < argc; ++i) {
+        const wchar_t* warg = wargv[i];
+        if (warg == nullptr) {
+            utf8_argv_storage.emplace_back();
+            continue;
+        }
+        const int size = WideCharToMultiByte(CP_UTF8, 0, warg, -1, nullptr, 0, nullptr, nullptr);
+        std::string utf8(size > 0 ? static_cast<std::size_t>(size - 1) : 0, '\0');
+        if (size > 0) {
+            WideCharToMultiByte(CP_UTF8, 0, warg, -1, utf8.data(), size, nullptr, nullptr);
+        }
+        utf8_argv_storage.push_back(std::move(utf8));
+    }
+
+    for (auto& arg : utf8_argv_storage) {
+        utf8_argv_ptrs.push_back(arg.data());
+    }
+}
+
+} // namespace
+
+int wmain(int argc, wchar_t** wargv) {
+    prepare_utf8_argv(argc, wargv);
+    return run(argc, utf8_argv_ptrs.data()) ? 0 : 1;
+}
+#else
 int main(int argc, char** argv) {
     return run(argc, argv) ? 0 : 1;
 }
+#endif

@@ -7,7 +7,7 @@
 #include <chrono>
 #include <fstream>
 #include <iomanip>
-#include <sstream>
+#include "nebbie/time_compat.hpp"
 
 namespace nebbie {
 
@@ -17,11 +17,9 @@ std::string timestamp_id() {
     const auto now = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(now);
     std::tm tm{};
-#if defined(_WIN32)
-    gmtime_s(&tm, &t);
-#else
-    gmtime_r(&t, &tm);
-#endif
+    if (!utc_tm_from_time_t(t, tm)) {
+        return "unknown";
+    }
     std::ostringstream oss;
     oss << std::put_time(&tm, "%Y%m%dT%H%M%SZ");
     return oss.str();

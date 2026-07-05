@@ -8,6 +8,7 @@
 #include "zone_editor_widget.hpp"
 #include "world_zone_map_widget.hpp"
 #include "zone_map_widget.hpp"
+#include "path_util.hpp"
 #include "nebbie/edit.hpp"
 #include "nebbie/overlay_io.hpp"
 #include "nebbie/io.hpp"
@@ -440,7 +441,7 @@ void MainWindow::setupMenus() {
 }
 
 void MainWindow::rememberLibPath(const std::filesystem::path& path) {
-    nebbie::qt::write_lib_path(QString::fromStdString(path.string()));
+    nebbie::qt::write_lib_path(nebbie::qt::qstring_from_path(path));
 }
 
 void MainWindow::openLibPath(const QString& path) {
@@ -448,18 +449,18 @@ void MainWindow::openLibPath(const QString& path) {
         return;
     }
     try {
-        const std::filesystem::path requested(path.toStdString());
+        const std::filesystem::path requested = nebbie::qt::path_from_qstring(path);
         const std::filesystem::path resolved = nebbie::resolve_lib_directory(requested);
         loadLib(resolved);
         rememberLibPath(resolved);
         if (resolved != requested) {
-            setStatus(QString("Libreria risolta in: %1").arg(QString::fromStdString(resolved.string())));
+            setStatus(QString("Libreria risolta in: %1").arg(nebbie::qt::qstring_from_path(resolved)));
         }
     } catch (const std::exception& ex) {
-        const std::filesystem::path resolved = nebbie::resolve_lib_directory(path.toStdString());
+        const std::filesystem::path resolved = nebbie::resolve_lib_directory(nebbie::qt::path_from_qstring(path));
         const QString detail = QString::fromUtf8(ex.what())
                                + QString("\n\nPercorso richiesto: %1").arg(path)
-                               + QString("\nPercorso risolto: %1").arg(QString::fromStdString(resolved.string()))
+                               + QString("\nPercorso risolto: %1").arg(nebbie::qt::qstring_from_path(resolved))
                                + "\n\nSeleziona la cartella mudroot/lib e ricompila la GUI:\n"
                                  "  ./scripts/build.sh";
         QMessageBox::critical(this, "Errore caricamento libreria", detail);
@@ -540,7 +541,7 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     zone_editor_->setWorld(&world_);
 
     const QString label = QString("Libreria: %1 — %2 zone, %3 stanze, %4 mob, %5 oggetti")
-                              .arg(QString::fromStdString(path.string()))
+                              .arg(nebbie::qt::qstring_from_path(path))
                               .arg(world_.zones.size())
                               .arg(world_.rooms.size())
                               .arg(world_.mobiles.size())
@@ -1102,7 +1103,7 @@ void MainWindow::exportOverlays() {
         const auto report = nebbie::export_myst_to_overlays(world_, lib_path_, nebbie::OverlayExportKind::all);
         QString message = QString("Overlay esportati in %1\n\n"
                                   "Stanze: %2\nOggetti: %3\nMob: %4\nReset zone: %5")
-                              .arg(QString::fromStdString(lib_path_.string()))
+                              .arg(nebbie::qt::qstring_from_path(lib_path_))
                               .arg(report.rooms)
                               .arg(report.objects)
                               .arg(report.mobiles)

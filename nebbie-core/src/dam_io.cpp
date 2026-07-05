@@ -1,32 +1,13 @@
 #include "nebbie/io.hpp"
 
 #include "nebbie/fread.hpp"
+#include "nebbie/file_io.hpp"
 
 #include <cstdio>
 
 namespace nebbie {
 
 namespace {
-
-FILE* open_read(const std::filesystem::path& path) {
-    FILE* fp = std::fopen(path.string().c_str(), "r");
-    if (!fp) {
-        throw ParseError("Unable to open damage file: " + path.string());
-    }
-    return fp;
-}
-
-FILE* open_write(const std::filesystem::path& path) {
-    std::error_code ec;
-    if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path(), ec);
-    }
-    FILE* fp = std::fopen(path.string().c_str(), "w");
-    if (!fp) {
-        throw ParseError("Unable to write damage file: " + path.string());
-    }
-    return fp;
-}
 
 void fwrite_string(FILE* fp, const std::string& value) {
     std::fprintf(fp, "%s~\n", value.c_str());
@@ -69,7 +50,7 @@ void write_combat_message(FILE* fp, const CombatMessage& msg) {
 void load_myst_dam(World& world, const std::filesystem::path& path, ProgressCallback progress) {
     world.damage_messages.clear();
 
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "damage message file");
     if (progress) {
         progress("Loading " + path.string());
     }
@@ -86,7 +67,7 @@ void load_myst_dam(World& world, const std::filesystem::path& path, ProgressCall
 }
 
 void save_myst_dam(const World& world, const std::filesystem::path& path, ProgressCallback progress) {
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "damage message file");
     if (progress) {
         progress("Writing " + path.string());
     }

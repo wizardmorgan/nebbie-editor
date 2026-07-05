@@ -82,3 +82,54 @@ jobs:
         run: |
           test -x build/nebbie-qt/nebbieedit.app/Contents/MacOS/nebbieedit
           test -f build/nebbie-qt/nebbieedit.app/Contents/Resources/nebbieedit.icns
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch nebbietest data
+        shell: pwsh
+        run: ./scripts/fetch-test-data.ps1
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.5.3"
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          modules: qtbase
+
+      - name: Build Windows icon
+        run: |
+          pip install pillow
+          python scripts/make-windows-icon.py
+
+      - name: Configure and build
+        shell: pwsh
+        run: ./scripts/build.ps1 -Test
+
+      - name: CLI smoke test
+        shell: pwsh
+        run: ./build/nebbiedit/Release/nebbiedit.exe info tests/fixtures
+
+      - name: Validate fixtures
+        shell: pwsh
+        run: ./build/nebbiedit/Release/nebbiedit.exe validate tests/fixtures
+
+      - name: MVP one-shot edit
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP "nebbie-mvp-cli"
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          Copy-Item -Recurse tests/fixtures $work
+          ./build/nebbiedit/Release/nebbiedit.exe room set $work 3001 --name "Stanza MVP CLI"
+          ./build/nebbiedit/Release/nebbiedit.exe validate $work
+
+      - name: Nebbietest phase-4 roundtrip
+        run: ctest --test-dir build -C Release -R nebbietest-phase4 --output-on-failure
+
+      - name: Build Qt GUI
+        shell: pwsh
+        run: Test-Path ./build/nebbie-qt/Release/nebbieedit.exe

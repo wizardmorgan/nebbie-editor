@@ -3,6 +3,7 @@
 #include "nebbie/overlay_io.hpp"
 
 #include "nebbie/fread.hpp"
+#include "nebbie/file_io.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -10,26 +11,6 @@
 namespace nebbie {
 
 namespace {
-
-FILE* open_read(const std::filesystem::path& path) {
-    FILE* fp = std::fopen(path.string().c_str(), "r");
-    if (!fp) {
-        throw ParseError("Unable to open zone file: " + path.string());
-    }
-    return fp;
-}
-
-FILE* open_write(const std::filesystem::path& path) {
-    std::error_code ec;
-    if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path(), ec);
-    }
-    FILE* fp = std::fopen(path.string().c_str(), "w");
-    if (!fp) {
-        throw ParseError("Unable to write zone file: " + path.string());
-    }
-    return fp;
-}
 
 bool is_reset_command(char c) {
     return std::strchr("HFMCOGEPD*;SR", c) != nullptr;
@@ -121,7 +102,7 @@ void write_zone_reset_commands(FILE* fp, const Zone& zone) {
 void load_myst_zon(World& world, const std::filesystem::path& path, ProgressCallback progress) {
     world.zones.clear();
 
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "zone file");
     if (progress) {
         progress("Loading " + path.string());
     }
@@ -166,7 +147,7 @@ void save_myst_zon(const World& world, const std::filesystem::path& path, Progre
         progress("Saving " + path.string());
     }
 
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "zone file");
     for (const auto& zone : world.zones) {
         std::fprintf(fp, "#%d\n", zone.num);
         std::fprintf(fp, "%s~\n", zone.name.c_str());
@@ -178,7 +159,7 @@ void save_myst_zon(const World& world, const std::filesystem::path& path, Progre
 }
 
 void save_zone_reset_overlay(const Zone& zone, const std::filesystem::path& path) {
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "zone file");
     write_zone_reset_commands(fp, zone);
     std::fclose(fp);
 }
@@ -188,7 +169,7 @@ void load_zone_reset_overlay(World& world, const int zone_num, const std::filesy
     if (!zone) {
         throw ParseError("Zone #" + std::to_string(zone_num) + " not loaded");
     }
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "zone file");
     read_zone_reset_commands(fp, *zone);
     std::fclose(fp);
 }
