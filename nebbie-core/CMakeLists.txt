@@ -18,6 +18,7 @@ add_library(nebbie-core
     src/session.cpp
     src/zone_graph.cpp
     src/mob_catalog.cpp
+    src/obj_catalog.cpp
 )
 
 target_include_directories(nebbie-core PUBLIC include)

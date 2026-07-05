@@ -2,6 +2,7 @@
 
 #include "app_config.hpp"
 #include "mob_editor_widget.hpp"
+#include "obj_editor_widget.hpp"
 #include "world_zone_map_widget.hpp"
 #include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
@@ -177,22 +178,17 @@ void MainWindow::setupUi() {
     mob_list_ = mob_page.list;
     tabs_->addTab(mob_page.page, "Mob");
 
-    auto* obj_editor = new QWidget;
-    auto* obj_form = new QFormLayout(obj_editor);
-    obj_short_ = new QLineEdit;
-    obj_desc_ = new QTextEdit;
-    obj_desc_->setMinimumHeight(80);
-    obj_cost_ = new QSpinBox;
-    obj_cost_->setRange(0, 1000000);
-    obj_weight_ = new QSpinBox;
-    obj_weight_->setRange(0, 100000);
-    obj_form->addRow("Nome breve:", obj_short_);
-    obj_form->addRow("Descrizione:", obj_desc_);
-    obj_form->addRow("Costo:", obj_cost_);
-    obj_form->addRow("Peso:", obj_weight_);
+    auto* obj_scroll = new QScrollArea;
+    obj_scroll->setWidgetResizable(true);
+    obj_editor_ = new ObjEditorWidget;
+    obj_scroll->setWidget(obj_editor_);
+    auto* obj_panel = new QWidget;
+    auto* obj_panel_layout = new QVBoxLayout(obj_panel);
+    obj_panel_layout->setContentsMargins(0, 0, 0, 0);
+    obj_panel_layout->addWidget(obj_scroll, 1);
     auto* obj_apply = new QPushButton("Applica modifiche");
-    obj_form->addRow(obj_apply);
-    const EntityPageWidgets obj_page = makeEntityPage(obj_editor, "Nuovo oggetto");
+    obj_panel_layout->addWidget(obj_apply);
+    const EntityPageWidgets obj_page = makeEntityPage(obj_panel, "Nuovo oggetto");
     obj_search_ = obj_page.search;
     obj_list_ = obj_page.list;
     tabs_->addTab(obj_page.page, "Oggetti");
@@ -1305,10 +1301,7 @@ void MainWindow::onObjSelected() {
     if (!obj) {
         return;
     }
-    obj_short_->setText(QString::fromStdString(obj->short_descr));
-    obj_desc_->setPlainText(QString::fromStdString(obj->description));
-    obj_cost_->setValue(obj->cost);
-    obj_weight_->setValue(obj->weight);
+    obj_editor_->loadFromObject(*obj);
 }
 
 void MainWindow::onExitSelected() {
@@ -1390,18 +1383,17 @@ void MainWindow::applyObjChanges() {
     }
     const long vnum = static_cast<long>(item->data(Qt::UserRole).toLongLong());
 
-    nebbie::ObjEdit edit;
-    edit.short_descr = obj_short_->text().toStdString();
-    edit.description = obj_desc_->toPlainText().toStdString();
-    edit.cost = obj_cost_->value();
-    edit.weight = obj_weight_->value();
-
-    if (!nebbie::edit_object(world_, vnum, edit)) {
+    nebbie::GameObject* obj = world_.find_object(vnum);
+    if (!obj) {
         QMessageBox::warning(this, "Oggetti", "Oggetto non trovato.");
         return;
     }
 
-    item->setText(QString("#%1 %2").arg(vnum).arg(obj_short_->text()));
+    nebbie::GameObject updated = *obj;
+    obj_editor_->saveToObject(updated);
+    nebbie::assign_object_fields(*obj, updated);
+
+    item->setText(QString("#%1 %2").arg(vnum).arg(QString::fromStdString(obj->short_descr)));
     markDirty();
     setStatus(QString("Oggetto %1 aggiornato in memoria.").arg(vnum));
 }

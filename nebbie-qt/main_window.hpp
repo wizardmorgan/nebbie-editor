@@ -28,6 +28,7 @@ class ZoneMapWidget;
 class WorldZoneMapWidget;
 class QCheckBox;
 class MobEditorWidget;
+class ObjEditorWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -146,10 +147,7 @@ private:
 
     QListWidget* obj_list_ = nullptr;
     QLineEdit* obj_search_ = nullptr;
-    QLineEdit* obj_short_ = nullptr;
-    QTextEdit* obj_desc_ = nullptr;
-    QSpinBox* obj_cost_ = nullptr;
-    QSpinBox* obj_weight_ = nullptr;
+    ObjEditorWidget* obj_editor_ = nullptr;
 
     QListWidget* zone_list_ = nullptr;
     QLabel* zone_info_ = nullptr;

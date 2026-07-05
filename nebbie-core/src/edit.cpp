@@ -321,18 +321,81 @@ void assign_mobile_fields(Mobile& mob, const Mobile& values) {
 }
 
 void apply_obj_edit(GameObject& obj, const ObjEdit& edit) {
+    if (!edit.name.empty()) {
+        obj.name = edit.name;
+    }
     if (!edit.short_descr.empty()) {
         obj.short_descr = edit.short_descr;
     }
     if (!edit.description.empty()) {
         obj.description = edit.description;
     }
-    if (edit.cost >= 0) {
-        obj.cost = edit.cost;
+    if (!edit.action_description.empty()) {
+        obj.action_description = edit.action_description;
+    }
+    if (edit.type_flag >= 0) {
+        obj.type_flag = edit.type_flag;
+    }
+    if (edit.extra_flags >= 0) {
+        obj.extra_flags = edit.extra_flags;
+    }
+    if (edit.wear_flags >= 0) {
+        obj.wear_flags = edit.wear_flags;
+    }
+    if (edit.value0 >= 0) {
+        obj.value[0] = edit.value0;
+    }
+    if (edit.value1 >= 0) {
+        obj.value[1] = edit.value1;
+    }
+    if (edit.value2 >= 0) {
+        obj.value[2] = edit.value2;
+    }
+    if (edit.value3 >= 0) {
+        obj.value[3] = edit.value3;
     }
     if (edit.weight >= 0) {
         obj.weight = edit.weight;
     }
+    if (edit.cost >= 0) {
+        obj.cost = edit.cost;
+    }
+    if (edit.cost_per_day >= 0) {
+        obj.cost_per_day = edit.cost_per_day;
+    }
+    if (edit.has_extra_flags2_set) {
+        obj.has_extra_flags2 = edit.has_extra_flags2;
+    }
+    if (edit.extra_flags2 >= 0) {
+        obj.extra_flags2 = edit.extra_flags2;
+    }
+    if (edit.forbidden_set) {
+        obj.forbidden_char = edit.forbidden_char;
+        obj.forbidden_room = edit.forbidden_room;
+    }
+}
+
+void assign_object_fields(GameObject& obj, const GameObject& values) {
+    obj.name = values.name;
+    obj.short_descr = values.short_descr;
+    obj.description = values.description;
+    obj.action_description = values.action_description;
+    obj.type_flag = values.type_flag;
+    obj.extra_flags = values.extra_flags;
+    obj.wear_flags = values.wear_flags;
+    obj.value[0] = values.value[0];
+    obj.value[1] = values.value[1];
+    obj.value[2] = values.value[2];
+    obj.value[3] = values.value[3];
+    obj.weight = values.weight;
+    obj.cost = values.cost;
+    obj.cost_per_day = values.cost_per_day;
+    obj.extra_descs = values.extra_descs;
+    obj.affects = values.affects;
+    obj.has_extra_flags2 = values.has_extra_flags2;
+    obj.extra_flags2 = values.extra_flags2;
+    obj.forbidden_char = values.forbidden_char;
+    obj.forbidden_room = values.forbidden_room;
 }
 
 bool edit_room(World& world, long vnum, const RoomEdit& edit) {

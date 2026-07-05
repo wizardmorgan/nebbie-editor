@@ -52,11 +52,29 @@ struct MobEdit {
 void assign_mobile_fields(Mobile& mob, const Mobile& values);
 
 struct ObjEdit {
+    std::string name;
     std::string short_descr;
     std::string description;
-    int cost = -1;
+    std::string action_description;
+    int type_flag = -1;
+    long extra_flags = -1;
+    long wear_flags = -1;
+    int value0 = -1;
+    int value1 = -1;
+    int value2 = -1;
+    int value3 = -1;
     int weight = -1;
+    int cost = -1;
+    int cost_per_day = -1;
+    bool has_extra_flags2 = false;
+    bool has_extra_flags2_set = false;
+    long extra_flags2 = -1;
+    std::string forbidden_char;
+    std::string forbidden_room;
+    bool forbidden_set = false;
 };
+
+void assign_object_fields(GameObject& obj, const GameObject& values);
 
 struct ExitEdit {
     int direction = 0;
