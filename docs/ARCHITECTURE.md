@@ -45,6 +45,7 @@ world/      # stato runtime stanza (oggetti/mob a terra), NON prototipi
 1. **Ora:** `World` in memoria da `myst.*` + overlay (`load_lib` applica `rooms/`, `objects/`, `mobiles/`, `zones/`).
 2. **Export:** `export_myst_to_overlays()` / CLI `nebbiedit overlay export <lib>` scrive file per-entità compatibili col boot server.
 3. **Save:** modalità sicura (`myst.*` only) vs compatibile server (file in overlay per entità modificate).
+4. **DB import:** `scripts/import-overlays-to-db.sh` importa i corpi overlay in tabelle SQLite con nome scelto interattivamente (es. `nebbie-mob`).
 4. **DB (roadmap):** stesso modello `World`, persistenza alternativa; i file restano source of truth finché il boot non migra.
 
 ## Moduli editor

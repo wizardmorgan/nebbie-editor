@@ -9,6 +9,7 @@
 #include "world_zone_map_widget.hpp"
 #include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
+#include "nebbie/overlay_io.hpp"
 #include "nebbie/io.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/world_index.hpp"
@@ -420,6 +421,9 @@ void MainWindow::setupMenus() {
     auto* validate_action = tools_menu->addAction("&Valida");
     validate_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     connect(validate_action, &QAction::triggered, this, &MainWindow::validateLib);
+    tools_menu->addSeparator();
+    auto* export_overlays_action = tools_menu->addAction("Esporta overlay...");
+    connect(export_overlays_action, &QAction::triggered, this, &MainWindow::exportOverlays);
 
     auto* coordinator_menu = menuBar()->addMenu("&Coordinator");
     auto* coordinator_config_action = coordinator_menu->addAction("Configuration...");
@@ -1086,6 +1090,38 @@ void MainWindow::loadWorldIndexFromFile() {
     }
 
     setStatus(QString("World index loaded from file: %1 zones.").arg(world_index_->zones.size()));
+}
+
+void MainWindow::exportOverlays() {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Export overlay", "Apri una libreria prima di esportare gli overlay.");
+        return;
+    }
+
+    try {
+        const auto report = nebbie::export_myst_to_overlays(world_, lib_path_, nebbie::OverlayExportKind::all);
+        QString message = QString("Overlay esportati in %1\n\n"
+                                  "Stanze: %2\nOggetti: %3\nMob: %4\nReset zone: %5")
+                              .arg(QString::fromStdString(lib_path_.string()))
+                              .arg(report.rooms)
+                              .arg(report.objects)
+                              .arg(report.mobiles)
+                              .arg(report.zone_resets);
+        if (!report.warnings.empty()) {
+            message += "\n\nAvvisi:";
+            for (const auto& warning : report.warnings) {
+                message += "\n• " + QString::fromStdString(warning);
+            }
+        }
+        QMessageBox::information(this, "Export overlay", message);
+        setStatus(QString("Overlay esportati: %1 stanze, %2 oggetti, %3 mob, %4 reset zone.")
+                      .arg(report.rooms)
+                      .arg(report.objects)
+                      .arg(report.mobiles)
+                      .arg(report.zone_resets));
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this, "Export overlay", QString::fromUtf8(ex.what()));
+    }
 }
 
 void MainWindow::exportLocalWorldIndex() {

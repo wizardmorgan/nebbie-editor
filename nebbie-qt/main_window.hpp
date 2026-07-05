@@ -76,6 +76,7 @@ private slots:
     void refreshWorldIndex();
     void loadWorldIndexFromFile();
     void exportLocalWorldIndex();
+    void exportOverlays();
     void reserveVnums();
 
 protected:
