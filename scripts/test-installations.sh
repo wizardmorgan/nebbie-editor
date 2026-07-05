@@ -87,6 +87,14 @@ if [[ "$(uname -s)" == "Linux" ]]; then
       fail "linux-installed-desktop-file-missing"
     fi
 
+    SAMPLE_LIB="${INSTALL_ROOT}/usr/share/nebbie-editor/sample-mudroot/lib"
+    if [[ -d "${SAMPLE_LIB}" && -f "${SAMPLE_LIB}/myst.zon" && -f "${SAMPLE_LIB}/myst.wld" ]]; then
+      pass "linux-installed-sample-lib"
+      run_cmd "linux-sample-lib-info" "${CLI}" info "${SAMPLE_LIB}" || true
+    else
+      fail "linux-installed-sample-lib-missing"
+    fi
+
     run_cmd "linux-deb-metadata" dpkg-deb --info "${DEB}" || true
   else
     fail "linux-deb-not-found"

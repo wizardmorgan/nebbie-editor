@@ -20,3 +20,5 @@ for file in myst.zon myst.wld myst.mob myst.obj myst.shp myst.spe; do
     echo "Installed $file -> mudroot/lib/"
   fi
 done
+
+"$ROOT/scripts/getworldlocal.sh" "$TARGET"

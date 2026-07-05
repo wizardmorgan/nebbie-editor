@@ -65,6 +65,9 @@ if [[ "${RUN_BUILD}" -eq 1 ]]; then
     "${ROOT}/scripts/build.sh"
 fi
 
+echo "==> Preparing bundled sample lib (getworldlocal)"
+"${ROOT}/scripts/prepare-sample-lib.sh"
+
 if [[ ! -x "${BUILD}/nebbiedit/nebbiedit" ]]; then
     echo "ERROR: CLI binary missing. Build first: ./scripts/build.sh" >&2
     exit 1
@@ -79,6 +82,9 @@ mkdir -p "${DIST}"
 
 echo "==> Installing into package staging (${PREFIX})"
 DESTDIR="${STAGING}" cmake --install "${BUILD}" --prefix "${PREFIX}"
+
+mkdir -p "${STAGING}/usr/share/nebbie-editor"
+cp -a "${ROOT}/dist/sample-mudroot" "${STAGING}/usr/share/nebbie-editor/"
 
 mkdir -p "${STAGING}/DEBIAN"
 
@@ -96,6 +102,7 @@ Installed-Size: ${INSTALLED_SIZE}
 Description: World editor for Nebbie Arcane MUD
  Nebbie Editor provides a CLI (nebbiedit) and Qt GUI (nebbieedit) to edit
  myst.* world files and overlay directories for Nebbie Arcane servers.
+ Includes a sample mudroot/lib under /usr/share/nebbie-editor/sample-mudroot.
 EOF
 
 DEB_FILE="${DIST}/nebbie-editor_${VERSION}_${ARCH}.deb"

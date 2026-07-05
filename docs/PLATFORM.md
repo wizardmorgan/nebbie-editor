@@ -107,9 +107,12 @@ GitHub Actions:
 | Windows | `.\scripts\package-windows.ps1` | `dist/nebbie-editor_<version>_windows.zip` + `*_windows_setup.exe` |
 | Windows (solo installer) | `.\scripts\package-windows-installer.ps1` | `dist/nebbie-editor_<version>_windows_setup.exe` |
 | Auto (Linux/macOS) | `./scripts/package.sh` | `.deb` o `.dmg` |
+| Libreria di prova | `./scripts/prepare-sample-lib.sh` | `dist/sample-mudroot/` (inclusa nei tre pacchetti) |
+| Mondo produzione → staging | `./scripts/export-production-world.sh sync` | `dist/production-world/` → `nebbie.wizmorgan.it` |
 
 Il `.deb` installa `nebbiedit` e `nebbieedit` in `/usr/bin` e il file `.desktop`.
-Il `.dmg` contiene `nebbieedit.app`, `bin/nebbiedit` e un collegamento ad `Applications`.
+Il `.deb` include anche `/usr/share/nebbie-editor/sample-mudroot/lib` (dataset `getworldlocal` da nebbietest).
+Il `.dmg` contiene `nebbieedit.app`, `bin/nebbiedit`, `sample-mudroot/lib` e un collegamento ad `Applications`.
 Lo zip Windows contiene `nebbiedit.exe`, `nebbieedit.exe` e le DLL Qt necessarie.
 L’installer Inno Setup (`.exe`) aggiunge collegamenti nel menu Start, opzione icona desktop e opzione PATH per la CLI.
 

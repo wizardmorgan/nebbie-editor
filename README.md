@@ -89,10 +89,16 @@ Pacchetti installabili:
 ./scripts/package-deb.sh
 sudo dpkg -i dist/nebbie-editor_*_amd64.deb
 sudo apt-get install -f
+nebbiedit info /usr/share/nebbie-editor/sample-mudroot/lib   # libreria di prova inclusa
 
 # macOS (.dmg) — su macOS
 ./scripts/package-dmg.sh
 open dist/nebbie-editor_*_macos.dmg
+# Nel volume: sample-mudroot/lib + trascina nebbieedit.app in Applicazioni
+
+# Produzione → staging (nebbie.wizmorgan.it)
+cp scripts/production-world.env.example scripts/production-world.env
+./scripts/export-production-world.sh sync
 ```
 
 Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md) · **Installazione:** [docs/MANUALE_INSTALLAZIONE.md](docs/MANUALE_INSTALLAZIONE.md) ([PDF](docs/MANUALE_INSTALLAZIONE.pdf)) · Riepilogo progetto: [docs/PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)

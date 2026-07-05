@@ -13,6 +13,7 @@ cmake-build-*/
 .vscode/
 *.user
 vendor/nebbietest/
+scripts/production-world.env
 tests/fixtures/rooms/
 tests/fixtures/objects/
 tests/fixtures/mobiles/

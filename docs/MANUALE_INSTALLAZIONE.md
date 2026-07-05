@@ -54,6 +54,7 @@ Su tutte le piattaforme sono disponibili **due programmi**:
 | `/usr/bin/nebbiedit` | Eseguibile CLI |
 | `/usr/bin/nebbieedit` | Eseguibile GUI |
 | `/usr/share/applications/nebbieedit.desktop` | Voce nel menu applicazioni |
+| `/usr/share/nebbie-editor/sample-mudroot/lib` | Libreria di prova (`myst.*`, workflow `getworldlocal`) |
 
 Le librerie Qt 6 **non** sono incluse nel pacchetto: vengono installate come dipendenze di sistema tramite `apt`.
 
@@ -65,6 +66,7 @@ Il disco immagine contiene:
 |----------|-------------|
 | `nebbieedit.app` | Applicazione grafica (bundle macOS con runtime Qt incorporato nel build) |
 | `bin/nebbiedit` | CLI da terminale |
+| `sample-mudroot/lib` | Libreria di prova (`myst.*`) |
 | `Applications` | Collegamento simbolico per il drag-and-drop in `/Applications` |
 
 > **Nota:** la CLI `nebbiedit` resta nella cartella `bin/` del volume DMG (o va copiata manualmente, ad es. in `/usr/local/bin`) se si desidera usarla da terminale ovunque.
@@ -77,6 +79,7 @@ Entrambe le modalità installano nella cartella scelta:
 |-----------------|-------------|
 | `nebbieedit.exe` | GUI principale |
 | `nebbiedit.exe` | CLI |
+| `sample-mudroot\lib\` | Libreria di prova (`myst.*`) |
 | `nebbieedit.ico` | Icona applicazione |
 | `*.dll`, `platforms/`, `styles/`, … | Runtime Qt (incluso via `windeployqt`) |
 
@@ -537,13 +540,74 @@ Se viene passato un percorso valido, ha priorità sulla configurazione salvata.
 Se il server usa directory overlay (`zones/`, `rooms/`, `objects/`, `mobiles/`), l'editor le carica automaticamente dopo i file `myst.*`.  
 Dalla GUI: **Strumenti → Esporta overlay…** per generare file overlay da modifiche in `myst.*`.
 
+### Libreria di prova inclusa nei pacchetti
+
+Ogni pacchetto (`.deb`, `.dmg`, zip/installer Windows) include una copia **`sample-mudroot/lib`** generata con lo stesso workflow del server (`getworldlocal` su [nebbietest](https://github.com/wizardmorgan/nebbietest)):
+
+| Piattaforma | Percorso dopo installazione |
+|-------------|----------------------------|
+| Linux | `/usr/share/nebbie-editor/sample-mudroot/lib` |
+| macOS (DMG) | `<volume>/sample-mudroot/lib` |
+| Windows | `<installazione>\sample-mudroot\lib` |
+
+Prova immediata:
+
+```bash
+nebbiedit info /usr/share/nebbie-editor/sample-mudroot/lib    # Linux
+nebbieedit /usr/share/nebbie-editor/sample-mudroot/lib        # GUI Linux
+```
+
+Rigenerare la libreria di prova in fase di build pacchetti:
+
+```bash
+./scripts/prepare-sample-lib.sh
+```
+
+### Sincronizzazione mondo produzione → nebbie.wizmorgan.it
+
+Per estrarre i file `myst.*` (e overlay) dal server di produzione e pubblicarli sullo staging `nebbie.wizmorgan.it`:
+
+```bash
+cp scripts/production-world.env.example scripts/production-world.env
+# Modifica host, utenti SSH e percorsi remoti
+./scripts/export-production-world.sh sync
+```
+
+Comandi disponibili:
+
+| Comando | Azione |
+|---------|--------|
+| `fetch` | Scarica `myst.*` e overlay da produzione (`rsync` via SSH) |
+| `manifest` | Esegue `nebbiedit info` / `validate` e scrive `world-manifest.json` |
+| `push` | Carica la staging locale su `nebbie.wizmorgan.it` |
+| `sync` | `fetch` + `manifest` + `push` |
+
+Configurazione predefinita (da `production-world.env.example`):
+
+- **Sorgente:** `nebbie@nebbie.nebbie.it:Run/release/lib` (come `getworld` nel repo Server)
+- **Destinazione:** `deploy@nebbie.wizmorgan.it:/var/www/nebbie/mudroot/lib`
+
 ---
 
 ## Verifica dell'installazione
 
 ### Test rapido CLI (tutte le piattaforme)
 
-Sostituisci `/percorso/lib` con la tua libreria reale:
+Con la **libreria di prova** inclusa nel pacchetto:
+
+```bash
+# Linux
+nebbiedit info /usr/share/nebbie-editor/sample-mudroot/lib
+nebbiedit validate /usr/share/nebbie-editor/sample-mudroot/lib
+
+# macOS (dopo mount DMG)
+nebbiedit info "/Volumes/Nebbie Editor/sample-mudroot/lib"
+
+# Windows
+nebbiedit.exe info "%LOCALAPPDATA%\Programs\Nebbie Editor\sample-mudroot\lib"
+```
+
+Oppure con la vostra libreria reale — sostituire `/percorso/lib`:
 
 ```bash
 nebbiedit info /percorso/lib

@@ -24,6 +24,15 @@ if (-not $NoBuild) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
+$bash = Get-Command bash -ErrorAction SilentlyContinue
+if ($bash) {
+    Write-Host "==> Preparing bundled sample lib (getworldlocal)"
+    & bash (Join-Path $Root "scripts/prepare-sample-lib.sh")
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} else {
+    Write-Warning "bash not found; Windows package will not include sample-mudroot"
+}
+
 $Cli = @(
     (Join-Path $Build "nebbiedit\Release\nebbiedit.exe"),
     (Join-Path $Build "nebbiedit\nebbiedit.exe")
@@ -46,6 +55,11 @@ Copy-Item $Gui (Join-Path $Staging "nebbieedit.exe")
 $Icon = Join-Path $Root "nebbie-qt\icons\nebbieedit.ico"
 if (Test-Path $Icon) {
     Copy-Item $Icon (Join-Path $Staging "nebbieedit.ico")
+}
+
+$Sample = Join-Path $Dist "sample-mudroot"
+if (Test-Path $Sample) {
+    Copy-Item -Recurse $Sample (Join-Path $Staging "sample-mudroot")
 }
 
 $Windeploy = Get-Command windeployqt -ErrorAction SilentlyContinue

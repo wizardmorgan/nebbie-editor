@@ -59,6 +59,9 @@ if [[ "${RUN_BUILD}" -eq 1 ]]; then
     "${ROOT}/scripts/build.sh" --macos-bundle
 fi
 
+echo "==> Preparing bundled sample lib (getworldlocal)"
+"${ROOT}/scripts/prepare-sample-lib.sh"
+
 APP_SRC="${BUILD}/nebbie-qt/nebbieedit.app"
 CLI_SRC="${BUILD}/nebbiedit/nebbiedit"
 
@@ -76,6 +79,7 @@ rm -rf "${STAGING}"
 mkdir -p "${STAGING}/bin"
 cp -R "${APP_SRC}" "${STAGING}/"
 cp "${CLI_SRC}" "${STAGING}/bin/"
+cp -a "${DIST}/sample-mudroot" "${STAGING}/"
 ln -sf /Applications "${STAGING}/Applications"
 
 DMG_FILE="${DIST}/nebbie-editor_${VERSION}_macos.dmg"
