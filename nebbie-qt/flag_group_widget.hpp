@@ -16,6 +16,9 @@ public:
     void setValue(long flags);
     long value() const;
 
+signals:
+    void valueChanged();
+
 private:
     std::vector<nebbie::MobFlagDef> defs_;
     std::vector<QCheckBox*> boxes_;

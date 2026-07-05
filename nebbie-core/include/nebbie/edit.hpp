@@ -12,7 +12,19 @@ struct RoomEdit {
     std::string description;
     long sector_type = -1;
     long room_flags = -1;
+    long tele_time = -1;
+    long tele_targ = -1;
+    long tele_mask = -1;
+    long tele_cnt = -1;
+    long river_speed = -1;
+    long river_dir = -1;
+    long moblim = -1;
+    std::string bright_at_night;
+    std::string bright_at_day;
+    bool bright_set = false;
 };
+
+void assign_room_fields(Room& room, const Room& values);
 
 struct MobEdit {
     std::string name;

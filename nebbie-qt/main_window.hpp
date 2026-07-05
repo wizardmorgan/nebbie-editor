@@ -29,6 +29,7 @@ class WorldZoneMapWidget;
 class QCheckBox;
 class MobEditorWidget;
 class ObjEditorWidget;
+class RoomEditorWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -62,9 +63,6 @@ private slots:
     void onRoomSearchChanged(const QString& text);
     void onMobSearchChanged(const QString& text);
     void onObjSearchChanged(const QString& text);
-    void onExitSelected();
-    void applyExitChanges();
-    void removeSelectedExit();
     void goToExitTarget();
     void onZoneSelected();
     void onResetSelected();
@@ -88,7 +86,6 @@ private:
     void refreshRoomList();
     void refreshMobList();
     void refreshObjectList();
-    void refreshExitList(long room_vnum);
     void refreshZoneList();
     void refreshZoneMap();
     void refreshWorldZoneMap();
@@ -129,17 +126,7 @@ private:
 
     QListWidget* room_list_ = nullptr;
     QLineEdit* room_search_ = nullptr;
-    QLineEdit* room_name_ = nullptr;
-    QTextEdit* room_desc_ = nullptr;
-    QSpinBox* room_sector_ = nullptr;
-    QSpinBox* room_flags_ = nullptr;
-    QListWidget* exit_list_ = nullptr;
-    QComboBox* exit_direction_ = nullptr;
-    QSpinBox* exit_to_room_ = nullptr;
-    QLineEdit* exit_description_ = nullptr;
-    QLineEdit* exit_keyword_ = nullptr;
-    QSpinBox* exit_info_ = nullptr;
-    QSpinBox* exit_key_ = nullptr;
+    RoomEditorWidget* room_editor_ = nullptr;
 
     QListWidget* mob_list_ = nullptr;
     QLineEdit* mob_search_ = nullptr;

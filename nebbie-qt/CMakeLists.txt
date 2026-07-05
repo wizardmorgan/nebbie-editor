@@ -14,6 +14,8 @@ add_executable(nebbieedit
     flag_group_widget.hpp
     mob_editor_widget.cpp
     mob_editor_widget.hpp
+    room_editor_widget.cpp
+    room_editor_widget.hpp
     obj_editor_widget.cpp
     obj_editor_widget.hpp
     world_zone_map_widget.cpp

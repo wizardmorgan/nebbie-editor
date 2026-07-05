@@ -15,6 +15,7 @@ FlagGroupWidget::FlagGroupWidget(const std::vector<nebbie::MobFlagDef>& defs, QW
         box->setToolTip(QString::fromUtf8(def.name));
         layout->addWidget(box, row, col);
         boxes_.push_back(box);
+        connect(box, &QCheckBox::toggled, this, [this](bool) { emit valueChanged(); });
         ++col;
         if (col >= 2) {
             col = 0;

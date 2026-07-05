@@ -199,6 +199,49 @@ void apply_room_edit(Room& room, const RoomEdit& edit) {
     if (edit.room_flags >= 0) {
         room.room_flags = edit.room_flags;
     }
+    if (edit.tele_time >= 0) {
+        room.tele_time = edit.tele_time;
+    }
+    if (edit.tele_targ >= 0) {
+        room.tele_targ = edit.tele_targ;
+    }
+    if (edit.tele_mask >= 0) {
+        room.tele_mask = edit.tele_mask;
+    }
+    if (edit.tele_cnt >= 0) {
+        room.tele_cnt = edit.tele_cnt;
+    }
+    if (edit.river_speed >= 0) {
+        room.river_speed = edit.river_speed;
+    }
+    if (edit.river_dir >= 0) {
+        room.river_dir = edit.river_dir;
+    }
+    if (edit.moblim >= 0) {
+        room.moblim = edit.moblim;
+    }
+    if (edit.bright_set) {
+        room.bright_at_night = edit.bright_at_night;
+        room.bright_at_day = edit.bright_at_day;
+    }
+}
+
+void assign_room_fields(Room& room, const Room& values) {
+    room.name = values.name;
+    room.description = values.description;
+    room.room_flags = values.room_flags;
+    room.sector_type = values.sector_type;
+    room.tele_time = values.tele_time;
+    room.tele_targ = values.tele_targ;
+    room.tele_mask = values.tele_mask;
+    room.tele_cnt = values.tele_cnt;
+    room.river_speed = values.river_speed;
+    room.river_dir = values.river_dir;
+    room.moblim = values.moblim;
+    room.bright_at_night = values.bright_at_night;
+    room.bright_at_day = values.bright_at_day;
+    room.extra_descs = values.extra_descs;
+    room.exits = values.exits;
 }
 
 void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
