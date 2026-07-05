@@ -41,7 +41,7 @@ std::vector<MobFlagDef> make_act_flags() {
         {268435456, "ACT_PALADIN", "PALADIN"},
         {536870912, "ACT_RANGER", "RANGER"},
         {1073741824, "ACT_PSI", "PSIONIST"},
-        {2147483648L, "ACT_ARCHER", "ARCHER"},
+        {static_cast<long>(static_cast<unsigned long>(1) << 31), "ACT_ARCHER", "ARCHER"},
     };
 }
 
@@ -78,7 +78,7 @@ std::vector<MobFlagDef> make_affected_flags() {
         {268435456, "AFF_GROUP", "GROUP"},
         {536870912, "AFF_TELEPATHY", "TELEPATHY"},
         {1073741824, "AFF_GLOBE_DARKNESS", "DARKNESS"},
-        {2147483648L, "AFF_UNDEF_AFF_1", "UNDEFINED"},
+        {static_cast<long>(static_cast<unsigned long>(1) << 31), "AFF_UNDEF_AFF_1", "UNDEFINED"},
     };
 }
 
