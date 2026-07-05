@@ -31,7 +31,8 @@ if (-not $NoQt) {
         Write-Host "Qt 6 is required for nebbieedit."
         Write-Host "Install Qt 6 for MSVC from https://www.qt.io/download-open-source"
         Write-Host "Then set: `$env:CMAKE_PREFIX_PATH = 'C:\Qt\6.x.x\msvc2019_64'"
-        Write-Host "Optional winget: winget install --id Qt.Qt.6"
+        Write-Host "Optional: winget install --id Qt.Qt.6"
+        Write-Host "Optional installer tool: winget install --id JRSoftware.InnoSetup"
     }
 }
 

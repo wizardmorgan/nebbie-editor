@@ -51,7 +51,8 @@ world/      # stato runtime stanza (oggetti/mob a terra), NON prototipi
 ## Moduli editor
 
 1. **nebbie-core** — modello in memoria + I/O (portable C++17)
-2. **nebbiedit** — CLI Linux/macOS
+2. **nebbiedit** — CLI (Linux, macOS, Windows)
 3. **nebbie-qt** — GUI Qt (`nebbieedit`): browse + edit + save + mappa
 
 Vedi [ROADMAP.md](ROADMAP.md) per mappa interattiva, packaging e database.
+Vedi [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) per il riepilogo completo del progetto.

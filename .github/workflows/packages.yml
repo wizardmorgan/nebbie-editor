@@ -84,7 +84,10 @@ jobs:
           pip install pillow
           python scripts/make-windows-icon.py
 
-      - name: Build Windows zip package
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Windows zip and installer
         shell: pwsh
         run: ./scripts/package-windows.ps1
 
@@ -93,4 +96,11 @@ jobs:
         with:
           name: nebbie-editor-zip-windows
           path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebbie-editor-installer-windows
+          path: dist/*_windows_setup.exe
           if-no-files-found: error

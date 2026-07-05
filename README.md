@@ -36,12 +36,16 @@ $env:CMAKE_PREFIX_PATH = "C:\Qt\6.5.3\msvc2019_64"   # adatta alla tua installaz
 .\build\nebbie-qt\Release\nebbieedit.exe tests\fixtures
 ```
 
-Pacchetto portatile:
+Pacchetto portatile e installer:
 
 ```powershell
-.\scripts\package-windows.ps1
+.\scripts\package-windows.ps1              # zip + installer
+.\scripts\package-windows-installer.ps1    # solo setup .exe
 # dist\nebbie-editor_<version>_windows.zip
+# dist\nebbie-editor_<version>_windows_setup.exe
 ```
+
+Richiede [Inno Setup 6](https://jrsoftware.org/isinfo.php) per l’installer (`winget install JRSoftware.InnoSetup`).
 
 Config libreria predefinita (GUI): `%APPDATA%\Nebbie\nebbieedit.conf`
 
@@ -91,7 +95,7 @@ sudo apt-get install -f
 open dist/nebbie-editor_*_macos.dmg
 ```
 
-Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
+Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md) · Riepilogo progetto: [docs/PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)
 
 ## Uso CLI (MVP)
 
