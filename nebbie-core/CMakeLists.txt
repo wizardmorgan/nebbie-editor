@@ -21,6 +21,7 @@ add_library(nebbie-core
     src/obj_catalog.cpp
     src/room_catalog.cpp
     src/zone_catalog.cpp
+    src/world_index.cpp
 )
 
 target_include_directories(nebbie-core PUBLIC include)
