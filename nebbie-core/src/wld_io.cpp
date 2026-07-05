@@ -1,4 +1,5 @@
 #include "nebbie/io.hpp"
+#include "nebbie/overlay_io.hpp"
 
 #include "nebbie/fread.hpp"
 
@@ -176,6 +177,61 @@ void read_room_body(FILE* fp, Room& room, World& world) {
     throw ParseError("Room " + std::to_string(room.vnum) + " missing terminating S");
 }
 
+void write_room_body(FILE* fp, const Room& room, const World& world) {
+    std::fprintf(fp, "%s~\n", room.name.c_str());
+    std::fprintf(fp, "%s~\n", room.description.c_str());
+
+    const int zone_num = room.zone_index >= 0 && room.zone_index < static_cast<int>(world.zones.size())
+        ? world.zones[room.zone_index].num
+        : 0;
+
+    if (room.tele_time || room.tele_targ || room.tele_mask) {
+        std::fprintf(fp, "%d %ld -1\n", zone_num, room.room_flags);
+        std::fprintf(fp, "%ld %ld %ld", room.tele_time, room.tele_targ, room.tele_mask);
+        if (room.tele_mask & TELE_COUNT) {
+            std::fprintf(fp, " %ld", room.tele_cnt);
+        }
+        std::fprintf(fp, " %ld\n", room.sector_type);
+    } else {
+        std::fprintf(fp, "%d %ld %ld\n", zone_num, room.room_flags, room.sector_type);
+    }
+
+    if (room.sector_type == SECT_WATER_NOSWIM || room.sector_type == SECT_UNDERWATER) {
+        if (room.river_speed || room.river_dir) {
+            std::fprintf(fp, "%ld %ld\n", room.river_speed, room.river_dir);
+        }
+    }
+
+    if (room.room_flags & TUNNEL) {
+        std::fprintf(fp, "%ld\n", room.moblim > 0 ? room.moblim : 1);
+    }
+
+    for (const auto& exit : room.exits) {
+        std::fprintf(fp, "D%d\n", exit.direction);
+        std::fprintf(fp, "%s~\n", exit.description.c_str());
+        std::fprintf(fp, "%s~\n", exit.keyword.c_str());
+        std::fprintf(fp, "%ld %ld %ld %ld\n",
+                     exit.exit_info,
+                     exit.key,
+                     exit.to_room,
+                     exit.open_cmd);
+    }
+
+    for (const auto& extra : room.extra_descs) {
+        std::fprintf(fp, "E\n");
+        std::fprintf(fp, "%s~\n", extra.keyword.c_str());
+        std::fprintf(fp, "%s~\n", extra.description.c_str());
+    }
+
+    if (!room.bright_at_night.empty() || !room.bright_at_day.empty()) {
+        std::fprintf(fp, "L\n");
+        std::fprintf(fp, "%s~\n", room.bright_at_night.c_str());
+        std::fprintf(fp, "%s~\n", room.bright_at_day.c_str());
+    }
+
+    std::fprintf(fp, "S\n");
+}
+
 char read_wld_marker(FILE* fp) {
     while (true) {
         int c = std::fgetc(fp);
@@ -250,61 +306,25 @@ void save_myst_wld(const World& world, const std::filesystem::path& path, Progre
     for (const auto& [vnum, room] : world.rooms) {
         (void)vnum;
         std::fprintf(fp, "#%ld\n", room.vnum);
-        std::fprintf(fp, "%s~\n", room.name.c_str());
-        std::fprintf(fp, "%s~\n", room.description.c_str());
-
-        const int zone_num = room.zone_index >= 0 && room.zone_index < static_cast<int>(world.zones.size())
-            ? world.zones[room.zone_index].num
-            : 0;
-
-        if (room.tele_time || room.tele_targ || room.tele_mask) {
-            std::fprintf(fp, "%d %ld -1\n", zone_num, room.room_flags);
-            std::fprintf(fp, "%ld %ld %ld", room.tele_time, room.tele_targ, room.tele_mask);
-            if (room.tele_mask & TELE_COUNT) {
-                std::fprintf(fp, " %ld", room.tele_cnt);
-            }
-            std::fprintf(fp, " %ld\n", room.sector_type);
-        } else {
-            std::fprintf(fp, "%d %ld %ld\n", zone_num, room.room_flags, room.sector_type);
-        }
-
-        if (room.sector_type == SECT_WATER_NOSWIM || room.sector_type == SECT_UNDERWATER) {
-            if (room.river_speed || room.river_dir) {
-                std::fprintf(fp, "%ld %ld\n", room.river_speed, room.river_dir);
-            }
-        }
-
-        if (room.room_flags & TUNNEL) {
-            std::fprintf(fp, "%ld\n", room.moblim > 0 ? room.moblim : 1);
-        }
-
-        for (const auto& exit : room.exits) {
-            std::fprintf(fp, "D%d\n", exit.direction);
-            std::fprintf(fp, "%s~\n", exit.description.c_str());
-            std::fprintf(fp, "%s~\n", exit.keyword.c_str());
-            std::fprintf(fp, "%ld %ld %ld %ld\n",
-                         exit.exit_info,
-                         exit.key,
-                         exit.to_room,
-                         exit.open_cmd);
-        }
-
-        for (const auto& extra : room.extra_descs) {
-            std::fprintf(fp, "E\n");
-            std::fprintf(fp, "%s~\n", extra.keyword.c_str());
-            std::fprintf(fp, "%s~\n", extra.description.c_str());
-        }
-
-        if (!room.bright_at_night.empty() || !room.bright_at_day.empty()) {
-            std::fprintf(fp, "L\n");
-            std::fprintf(fp, "%s~\n", room.bright_at_night.c_str());
-            std::fprintf(fp, "%s~\n", room.bright_at_day.c_str());
-        }
-
-        std::fprintf(fp, "S\n");
+        write_room_body(fp, room, world);
     }
     std::fprintf(fp, "#0\n");
     std::fclose(fp);
+}
+
+void save_room_overlay(const Room& room, const World& world, const std::filesystem::path& path) {
+    FILE* fp = open_write(path);
+    write_room_body(fp, room, world);
+    std::fclose(fp);
+}
+
+void load_room_overlay(World& world, const long vnum, const std::filesystem::path& path) {
+    FILE* fp = open_read(path);
+    Room room;
+    room.vnum = vnum;
+    read_room_body(fp, room, world);
+    std::fclose(fp);
+    world.rooms[vnum] = std::move(room);
 }
 
 } // namespace nebbie

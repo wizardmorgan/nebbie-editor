@@ -41,6 +41,11 @@ target_link_libraries(nebbie-world-index-tests PRIVATE nebbie-core)
 add_test(NAME world-index-fixtures
          COMMAND nebbie-world-index-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
 
+add_executable(nebbie-overlay-tests test_overlay.cpp)
+target_link_libraries(nebbie-overlay-tests PRIVATE nebbie-core)
+add_test(NAME overlay-fixtures
+         COMMAND nebbie-overlay-tests ${CMAKE_SOURCE_DIR}/tests/fixtures)
+
 add_executable(nebbie-nebbietest-mob-tests test_nebbietest_mob.cpp)
 target_link_libraries(nebbie-nebbietest-mob-tests PRIVATE nebbie-core)
 
