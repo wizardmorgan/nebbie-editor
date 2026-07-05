@@ -1,4 +1,5 @@
 #include "nebbie/io.hpp"
+#include "nebbie/overlay_io.hpp"
 
 #include "nebbie/fread.hpp"
 
@@ -244,8 +245,7 @@ void fwrite_string(FILE* fp, const std::string& value) {
     std::fprintf(fp, "%s~\n", value.c_str());
 }
 
-void write_object_entry(FILE* fp, const GameObject& obj) {
-    std::fprintf(fp, "#%ld\n", obj.vnum);
+void write_object_body(FILE* fp, const GameObject& obj) {
     fwrite_string(fp, obj.name);
     fwrite_string(fp, obj.short_descr);
     fwrite_string(fp, obj.description);
@@ -277,6 +277,11 @@ void write_object_entry(FILE* fp, const GameObject& obj) {
         fwrite_string(fp, obj.forbidden_char);
         fwrite_string(fp, obj.forbidden_room);
     }
+}
+
+void write_object_entry(FILE* fp, const GameObject& obj) {
+    std::fprintf(fp, "#%ld\n", obj.vnum);
+    write_object_body(fp, obj);
 }
 
 } // namespace
@@ -369,6 +374,21 @@ void save_myst_obj(const World& world, const std::filesystem::path& path, Progre
 
     std::fprintf(fp, "%%%%\n");
     std::fclose(fp);
+}
+
+void save_object_overlay(const GameObject& obj, const std::filesystem::path& path) {
+    FILE* fp = open_write(path);
+    write_object_body(fp, obj);
+    std::fclose(fp);
+}
+
+void load_object_overlay(World& world, const long vnum, const std::filesystem::path& path) {
+    FILE* fp = open_read(path);
+    GameObject obj;
+    obj.vnum = vnum;
+    read_object_entry(fp, obj);
+    std::fclose(fp);
+    world.objects[vnum] = std::move(obj);
 }
 
 } // namespace nebbie

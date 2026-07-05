@@ -43,10 +43,12 @@ Oppure senza bundle:
 ### Linux (dettaglio)
 
 ```bash
-sudo apt-get update
 sudo apt-get install -y build-essential cmake qt6-base-dev
 ./scripts/build.sh --test
+./scripts/install-linux.sh /usr/local   # oppure ~/.local
 ```
+
+Config libreria predefinita (GUI): `~/.config/Nebbie/nebbieedit.conf`
 
 ## Regole di sviluppo
 
@@ -63,8 +65,22 @@ GitHub Actions:
 
 - `build-linux` — `ubuntu-latest`
 - `build-macos` — `macos-latest`
+- `packages` — genera `.deb` (Linux) e `.dmg` (macOS) come artifact
 
-Entrambi eseguono: configure, build, ctest, smoke CLI, validazione fixture, MVP edit, roundtrip phase-4, verifica binario Qt.
+Entrambi i job build eseguono: configure, build, ctest, smoke CLI, validazione fixture, MVP edit, roundtrip phase-4, verifica binario Qt.
+
+## Pacchetti
+
+| Piattaforma | Script | Output |
+|-------------|--------|--------|
+| Linux (Debian/Ubuntu) | `./scripts/package-deb.sh` | `dist/nebbie-editor_<version>_<arch>.deb` |
+| macOS | `./scripts/package-dmg.sh` | `dist/nebbie-editor_<version>_macos.dmg` |
+| Auto (OS corrente) | `./scripts/package.sh` | come sopra |
+
+Il `.deb` installa `nebbiedit` e `nebbieedit` in `/usr/bin` e il file `.desktop`.
+Il `.dmg` contiene `nebbieedit.app`, `bin/nebbiedit` e un collegamento ad `Applications`.
+
+**Windows:** non supportato in questa versione.
 
 ## Risoluzione problemi
 
@@ -77,7 +93,16 @@ export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
 
 ### macOS: `nebbieedit` non si apre da Finder
 
-Usa `./scripts/build.sh --macos-bundle` e poi `open build/nebbie-qt/nebbieedit.app`.
+Usa `./scripts/build.sh --macos-bundle` e poi:
+
+```bash
+./scripts/install-macos.sh    # copia in /Applications
+open /Applications/nebbieedit.app
+```
+
+Al primo avvio (senza argomenti) l'app chiede la cartella `mudroot/lib` e la salva in:
+
+`~/Library/Application Support/Nebbie/nebbieedit.conf`
 
 L'icona dell'app è in `nebbie-qt/icons/` (`nebbieedit.icns`). Per rigenerarla da sorgente:
 

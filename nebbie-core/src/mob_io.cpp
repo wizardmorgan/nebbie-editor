@@ -1,4 +1,5 @@
 #include "nebbie/io.hpp"
+#include "nebbie/overlay_io.hpp"
 
 #include "nebbie/fread.hpp"
 
@@ -202,7 +203,7 @@ bool peek_is_mob_boundary(FILE* fp) {
     while (c != EOF && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
         c = std::fgetc(fp);
     }
-    const bool boundary = (c == '#' || c == '%');
+    const bool boundary = (c == '#' || c == '%' || c == EOF);
     std::fseek(fp, pos, SEEK_SET);
     return boundary;
 }
@@ -342,8 +343,7 @@ void write_new_mob_stats(FILE* fp, const Mobile& mob) {
     }
 }
 
-void write_mobile_entry(FILE* fp, const Mobile& mob) {
-    std::fprintf(fp, "#%ld\n", mob.vnum);
+void write_mobile_body(FILE* fp, const Mobile& mob) {
     fwrite_string(fp, mob.name);
     fwrite_string(fp, mob.short_descr);
     fwrite_string(fp, mob.long_descr);
@@ -359,6 +359,11 @@ void write_mobile_entry(FILE* fp, const Mobile& mob) {
     }
 
     write_new_mob_stats(fp, mob);
+}
+
+void write_mobile_entry(FILE* fp, const Mobile& mob) {
+    std::fprintf(fp, "#%ld\n", mob.vnum);
+    write_mobile_body(fp, mob);
 }
 
 void skip_utf8_bom(FILE* fp) {
@@ -484,6 +489,21 @@ void save_myst_mob(const World& world, const std::filesystem::path& path, Progre
 
     std::fprintf(fp, "%%%%\n");
     std::fclose(fp);
+}
+
+void save_mobile_overlay(const Mobile& mob, const std::filesystem::path& path) {
+    FILE* fp = open_write(path);
+    write_mobile_body(fp, mob);
+    std::fclose(fp);
+}
+
+void load_mobile_overlay(World& world, const long vnum, const std::filesystem::path& path) {
+    FILE* fp = open_read(path);
+    Mobile mob;
+    mob.vnum = vnum;
+    read_mobile_entry(fp, mob);
+    std::fclose(fp);
+    world.mobiles[vnum] = std::move(mob);
 }
 
 } // namespace nebbie

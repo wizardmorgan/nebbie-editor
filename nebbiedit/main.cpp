@@ -1,6 +1,8 @@
 #include "nebbie/io.hpp"
+#include "nebbie/overlay_io.hpp"
 #include "nebbie/validate.hpp"
 #include "nebbie/world.hpp"
+#include "nebbie/zone_graph.hpp"
 
 #include "cli_parse.hpp"
 #include "shell.hpp"
@@ -22,6 +24,8 @@ void usage() {
         << "  nebbiedit load <lib-directory>\n"
         << "  nebbiedit zone list\n"
         << "  nebbiedit zone show <zone-number>\n"
+        << "  nebbiedit zone rooms <zone-number>\n"
+        << "  nebbiedit zone graph <zone-number> [--dot]\n"
         << "  nebbiedit room show <vnum>\n"
         << "  nebbiedit mob list\n"
         << "  nebbiedit mob show <vnum>\n"
@@ -50,7 +54,8 @@ void usage() {
         << "  nebbiedit obj set <lib-directory> <vnum> [--short T] [--cost N] [--weight N]\n"
         << "  (append --force to one-shot set commands to save despite validation errors)\n"
         << "  nebbiedit convert zon roundtrip <lib-directory> <output-directory>\n"
-        << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n\n"
+        << "  nebbiedit convert lib roundtrip <lib-directory> <output-directory>\n"
+        << "  nebbiedit overlay export <lib-directory> [--rooms|--objects|--mobiles|--zones]\n\n"
         << "Reference server: https://github.com/NebbieArcane/Server\n"
         << "Test server fork: https://github.com/wizardmorgan/nebbietest\n";
 }
@@ -129,6 +134,42 @@ bool run(int argc, char** argv) {
                 }
                 std::cerr << "Zone not loaded: " << num << '\n';
                 return false;
+            }
+            if (sub == "rooms" && argc >= 4) {
+                const int num = std::stoi(argv[3]);
+                const auto rooms = nebbie::rooms_in_zone(g_world, num);
+                if (rooms.empty()) {
+                    std::cerr << "No rooms in zone " << num << " (zone not loaded?)\n";
+                    return false;
+                }
+                for (long vnum : rooms) {
+                    const nebbie::Room* room = g_world.find_room(vnum);
+                    std::cout << vnum;
+                    if (room) {
+                        std::cout << " " << room->name;
+                    }
+                    std::cout << '\n';
+                }
+                return true;
+            }
+            if (sub == "graph" && argc >= 4) {
+                const int num = std::stoi(argv[3]);
+                const nebbie::ZoneGraph graph = nebbie::build_zone_graph(g_world, num);
+                if (graph.nodes.empty()) {
+                    std::cerr << "No rooms in zone " << num << " (zone not loaded?)\n";
+                    return false;
+                }
+                const bool dot = argc >= 5 && std::string(argv[4]) == "--dot";
+                if (dot) {
+                    std::cout << nebbie::zone_graph_to_dot(graph);
+                } else {
+                    std::cout << "Zone " << graph.zone_num << " " << graph.zone_name
+                              << " [" << graph.bottom << "-" << graph.top << "]\n";
+                    std::cout << "Rooms: " << graph.nodes.size()
+                              << " Edges: " << graph.edges.size() << '\n';
+                    std::cout << "Use --dot for Graphviz output.\n";
+                }
+                return true;
             }
         }
 
@@ -551,6 +592,43 @@ bool run(int argc, char** argv) {
                 std::cout << "Round-trip OK in " << out << '\n';
                 return true;
             }
+        }
+
+        if (cmd == "overlay" && argc >= 4 && std::string(argv[2]) == "export") {
+            nebbie::World world;
+            nebbie::load_lib(world, argv[3], [](const std::string& msg) {
+                std::cout << msg << '\n';
+            });
+
+            nebbie::OverlayExportKind kind = nebbie::OverlayExportKind::all;
+            for (int i = 4; i < argc; ++i) {
+                const std::string flag = argv[i];
+                if (flag == "--rooms") {
+                    kind = nebbie::OverlayExportKind::rooms;
+                } else if (flag == "--objects") {
+                    kind = nebbie::OverlayExportKind::objects;
+                } else if (flag == "--mobiles") {
+                    kind = nebbie::OverlayExportKind::mobiles;
+                } else if (flag == "--zones") {
+                    kind = nebbie::OverlayExportKind::zone_resets;
+                } else {
+                    usage();
+                    return false;
+                }
+            }
+
+            const auto report = nebbie::export_myst_to_overlays(world, argv[3], kind,
+                                                                [](const std::string& msg) {
+                                                                    std::cout << msg << '\n';
+                                                                });
+            std::cout << "Exported overlays: rooms=" << report.rooms
+                      << " objects=" << report.objects
+                      << " mobiles=" << report.mobiles
+                      << " zone_resets=" << report.zone_resets << '\n';
+            for (const auto& warning : report.warnings) {
+                std::cout << "WARN: " << warning << '\n';
+            }
+            return true;
         }
 
         if (cmd == "convert" && argc >= 5 && std::string(argv[2]) == "lib") {
