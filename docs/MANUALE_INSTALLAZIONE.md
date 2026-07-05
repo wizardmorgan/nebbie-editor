@@ -16,12 +16,15 @@ Questo documento descrive in dettaglio le **tre modalità di installazione uffic
 7. [Installazione su Windows](#installazione-su-windows)
    - [Opzione A — Zip portatile](#opzione-a--zip-portatile)
    - [Opzione B — Installer `.exe` (Inno Setup)](#opzione-b--installer-exe-inno-setup)
+   - [Walkthrough grafico — wizard Windows](#walkthrough-grafico--wizard-windows)
 8. [Primo avvio e configurazione](#primo-avvio-e-configurazione)
 9. [Verifica dell'installazione](#verifica-dellinstallazione)
 10. [Disinstallazione](#disinstallazione)
 11. [Risoluzione problemi](#risoluzione-problemi)
 12. [Alternative: installazione da sorgente](#alternative-installazione-da-sorgente)
 13. [Uso rapido dopo l'installazione](#uso-rapido-dopo-linstallazione)
+
+> **PDF:** [MANUALE_INSTALLAZIONE.pdf](MANUALE_INSTALLAZIONE.pdf) — versione stampabile di questo manuale (rigenerabile con `./scripts/build-manuale-pdf.sh`).
 
 ---
 
@@ -387,6 +390,8 @@ Il wizard è disponibile in **italiano** e **inglese**.
 4. **Installazione** — Il setup copia eseguibili, DLL Qt e crea le voci nel menu Start.
 5. **Completamento** — Opzione «Avvia Nebbie Editor» al termine.
 
+Vedi la sezione [Walkthrough grafico — wizard Windows](#walkthrough-grafico--wizard-windows) per le schermate passo-passo.
+
 #### Passo 3 — Cosa crea l'installer
 
 | Elemento | Percorso |
@@ -416,6 +421,63 @@ nebbiedit info C:\percorso\mudroot\lib
 #### Passo 5 — Aggiornamento
 
 Esegui il nuovo `*_windows_setup.exe`. L'installer aggiorna i file nella stessa cartella. La configurazione in `%APPDATA%\Nebbie\` viene preservata.
+
+---
+
+## Walkthrough grafico — wizard Windows
+
+Le immagini seguenti illustrano le schermate principali dell'installer `nebbie-editor_*_windows_setup.exe` (Inno Setup, stile moderno, lingua italiana). I testi e i percorsi sono rappresentativi: il nome utente e la versione possono variare.
+
+### 1. Benvenuto
+
+Avvia il setup con doppio clic sul file `.exe`. Nella prima schermata clicca **Avanti** per iniziare.
+
+![Schermata di benvenuto del wizard di installazione Nebbie Editor](images/windows-installer/01-benvenuto.png)
+
+### 2. Cartella di destinazione
+
+Conferma o modifica la cartella di installazione. Il percorso predefinito è nella cartella locale dell'utente (`AppData\Local\Programs\Nebbie Editor`) e **non richiede privilegi di amministratore**.
+
+![Selezione cartella di destinazione](images/windows-installer/02-destinazione.png)
+
+| Azione | Descrizione |
+|--------|-------------|
+| **Sfoglia…** | Scegli un'altra cartella (es. `D:\Tools\Nebbie Editor`) |
+| **Avanti** | Conferma e prosegui |
+
+### 3. Attività aggiuntive
+
+Seleziona le opzioni facoltative prima dell'installazione:
+
+![Attività aggiuntive: icona desktop e PATH](images/windows-installer/03-attivita.png)
+
+| Opzione | Consiglio |
+|---------|-----------|
+| **Crea un'icona sul desktop** | Utile per avvio rapido della GUI |
+| **Aggiungi la cartella di installazione al PATH** | Consigliato se usi spesso `nebbiedit` da PowerShell o CMD |
+
+### 4. Installazione in corso
+
+Il wizard copia `nebbieedit.exe`, `nebbiedit.exe`, le DLL Qt e crea i collegamenti nel menu Start. Attendi il completamento della barra di avanzamento.
+
+![Installazione in corso con barra di avanzamento](images/windows-installer/04-installazione.png)
+
+### 5. Completamento
+
+L'installazione è terminata. Lascia selezionato **Avvia Nebbie Editor** per aprire subito la GUI, poi clicca **Fine**.
+
+![Completamento installazione con opzione avvio](images/windows-installer/05-completamento.png)
+
+### Dopo il wizard
+
+| Elemento creato | Dove trovarlo |
+|-----------------|---------------|
+| Applicazione GUI | Menu Start → **Nebbie Editor** |
+| CLI | Menu Start → **Nebbie CLI (nebbiedit)** oppure terminale (se PATH abilitato) |
+| File installati | `%LOCALAPPDATA%\Programs\Nebbie Editor\` |
+| Configurazione GUI | `%APPDATA%\Nebbie\nebbieedit.conf` |
+
+Al primo avvio seleziona la cartella `mudroot/lib` del server con **File → Apri libreria…** (vedi [Primo avvio e configurazione](#primo-avvio-e-configurazione)).
 
 ---
 
@@ -677,6 +739,7 @@ L'editor supporta autosalvataggio e cronologia versioni nella cartella `.nebbie/
 
 - Repository: https://github.com/wizardmorgan/nebbie-editor
 - Piattaforme e build: [PLATFORM.md](PLATFORM.md)
+- **Installazione (IT):** [MANUALE_INSTALLAZIONE.md](MANUALE_INSTALLAZIONE.md) · [PDF](MANUALE_INSTALLAZIONE.pdf)
 - Architettura: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Riepilogo progetto: [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
 - Server Nebbie Arcane: https://github.com/NebbieArcane/Server
