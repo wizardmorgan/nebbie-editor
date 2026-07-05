@@ -99,12 +99,15 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2019_64
-          modules: qtbase
 
       - name: Build Windows icon
         run: |
-          pip install pillow
-          python scripts/make-windows-icon.py
+          if [ -f nebbie-qt/icons/nebbieedit.ico ]; then
+            echo "Using committed nebbieedit.ico"
+          else
+            pip install pillow
+            python scripts/make-windows-icon.py
+          fi
 
       - name: Configure and build
         shell: pwsh

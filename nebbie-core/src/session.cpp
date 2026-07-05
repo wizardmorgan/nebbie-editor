@@ -7,6 +7,7 @@
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 #include "nebbie/time_compat.hpp"
 
 namespace nebbie {

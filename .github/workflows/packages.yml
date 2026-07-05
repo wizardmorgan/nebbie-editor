@@ -46,8 +46,12 @@ jobs:
 
       - name: Build macOS icon
         run: |
-          pip3 install pillow
-          python3 scripts/make-macos-icon.py
+          if [[ -f nebbie-qt/icons/nebbieedit.icns ]]; then
+            echo "Using committed nebbieedit.icns"
+          else
+            pip3 install pillow --break-system-packages
+            python3 scripts/make-macos-icon.py
+          fi
 
       - name: Build .dmg package
         run: |
@@ -77,12 +81,15 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2019_64
-          modules: qtbase
 
       - name: Build Windows icon
         run: |
-          pip install pillow
-          python scripts/make-windows-icon.py
+          if [[ -f nebbie-qt/icons/nebbieedit.ico ]]; then
+            echo "Using committed nebbieedit.ico"
+          else
+            pip install pillow
+            python scripts/make-windows-icon.py
+          fi
 
       - name: Install Inno Setup
         run: choco install innosetup -y
