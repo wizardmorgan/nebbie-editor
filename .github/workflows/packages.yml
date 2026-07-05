@@ -83,8 +83,9 @@ jobs:
           arch: win64_msvc2019_64
 
       - name: Build Windows icon
+        shell: bash
         run: |
-          if [[ -f nebbie-qt/icons/nebbieedit.ico ]]; then
+          if [ -f nebbie-qt/icons/nebbieedit.ico ]; then
             echo "Using committed nebbieedit.ico"
           else
             pip install pillow
