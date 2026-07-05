@@ -65,8 +65,22 @@ GitHub Actions:
 
 - `build-linux` — `ubuntu-latest`
 - `build-macos` — `macos-latest`
+- `packages` — genera `.deb` (Linux) e `.dmg` (macOS) come artifact
 
-Entrambi eseguono: configure, build, ctest, smoke CLI, validazione fixture, MVP edit, roundtrip phase-4, verifica binario Qt.
+Entrambi i job build eseguono: configure, build, ctest, smoke CLI, validazione fixture, MVP edit, roundtrip phase-4, verifica binario Qt.
+
+## Pacchetti
+
+| Piattaforma | Script | Output |
+|-------------|--------|--------|
+| Linux (Debian/Ubuntu) | `./scripts/package-deb.sh` | `dist/nebbie-editor_<version>_<arch>.deb` |
+| macOS | `./scripts/package-dmg.sh` | `dist/nebbie-editor_<version>_macos.dmg` |
+| Auto (OS corrente) | `./scripts/package.sh` | come sopra |
+
+Il `.deb` installa `nebbiedit` e `nebbieedit` in `/usr/bin` e il file `.desktop`.
+Il `.dmg` contiene `nebbieedit.app`, `bin/nebbiedit` e un collegamento ad `Applications`.
+
+**Windows:** non supportato in questa versione.
 
 ## Risoluzione problemi
 

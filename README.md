@@ -59,7 +59,20 @@ Installazione Linux:
 ./scripts/install-linux.sh ~/.local
 ```
 
-Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
+Pacchetti installabili:
+
+```bash
+# Debian/Ubuntu (.deb) — su Linux
+./scripts/package-deb.sh
+sudo dpkg -i dist/nebbie-editor_*_amd64.deb
+sudo apt-get install -f
+
+# macOS (.dmg) — su macOS
+./scripts/package-dmg.sh
+open dist/nebbie-editor_*_macos.dmg
+```
+
+**Windows non è supportato** (solo Linux e macOS). Vedi [docs/PLATFORM.md](docs/PLATFORM.md).
 
 ## Uso CLI (MVP)
 
