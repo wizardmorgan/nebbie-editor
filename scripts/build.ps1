@@ -31,10 +31,8 @@ $CmakeArgs = @(
 
 if ($Generator) {
     $CmakeArgs += @("-G", $Generator)
-} elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
-    $CmakeArgs += @("-G", "Ninja")
 } elseif (Get-Command cl -ErrorAction SilentlyContinue) {
-    $CmakeArgs += @("-G", "Visual Studio 17 2022", "-A", "x64")
+    # Let CMake select the newest installed Visual Studio generator (matches Qt MSVC kits).
 }
 
 if ($QtPrefix) {
