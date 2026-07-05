@@ -154,9 +154,9 @@ std::vector<std::pair<int, std::string>> mob_position_choices() {
 
 std::vector<std::pair<int, std::string>> mob_sex_choices() {
     return {
-        {0, "Neutro"},
-        {1, "Maschio"},
-        {2, "Femmina"},
+        {0, "Neutral"},
+        {1, "Male"},
+        {2, "Female"},
     };
 }
 
@@ -172,10 +172,10 @@ std::vector<std::pair<int, std::string>> mob_race_choices() {
 std::vector<std::pair<char, std::string>> mob_type_choices() {
     return {
         {'S', "S — Simple (hit dice)"},
-        {'A', "A — Advanced (hit bonus)"},
-        {'N', "N — Advanced (no mult_att)"},
+        {'A', "A — Advanced (hit bonus, mult_att)"},
+        {'N', "N — Advanced (hit bonus, no mult_att)"},
         {'B', "B — Advanced + HUGE"},
-        {'L', "L — Advanced + suoni"},
+        {'L', "L — Advanced + sounds"},
     };
 }
 
@@ -197,11 +197,11 @@ std::string mob_position_name(const int position) {
 std::string mob_sex_name(const int sex) {
     switch (sex) {
     case 1:
-        return "Maschio";
+        return "Male";
     case 2:
-        return "Femmina";
+        return "Female";
     default:
-        return "Neutro";
+        return "Neutral";
     }
 }
 

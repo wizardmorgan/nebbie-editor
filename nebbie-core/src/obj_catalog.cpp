@@ -4,12 +4,11 @@ namespace nebbie {
 
 namespace {
 
-const char* kItemTypesIta[] = {
-    "Nessuno", "Luce", "Pergamena", "Bacchetta", "Bastone", "Arma", "Arma da Tiro",
-    "Proiettile", "Tesoro", "Armatura", "Pozione", "Logoro", "Altro", "Spazzatura",
-    "Trappola", "Contenitore", "Appunto", "Contenitore per Bevande", "Chiave", "Cibo",
-    "Monete", "Penna", "Nave", "Audio", "Bacheca", "Albero", "Roccia", "Gemma",
-    "Minerale", "Lingotto", "Gioiello",
+const char* kItemTypes[] = {
+    "UNDEFINED", "LIGHT", "SCROLL", "WAND", "STAFF", "WEAPON", "FIRE WEAPON", "MISSILE",
+    "TREASURE", "ARMOR", "POTION", "WORN", "OTHER", "TRASH", "TRAP", "CONTAINER", "NOTE",
+    "LIQUID CONTAINER", "KEY", "FOOD", "MONEY", "PEN", "BOAT", "AUDIO", "BOARD", "TREE",
+    "ROCK", "MINED GEM", "MINED MINERAL", "BAR", "JEWEL",
 };
 
 const char* kWearBits[] = {
@@ -61,9 +60,9 @@ std::vector<MobFlagDef> make_bit_flags(const char* const* names, std::size_t cou
 
 std::vector<std::pair<int, std::string>> obj_type_choices() {
     std::vector<std::pair<int, std::string>> choices;
-    const std::size_t count = sizeof(kItemTypesIta) / sizeof(kItemTypesIta[0]);
+    const std::size_t count = sizeof(kItemTypes) / sizeof(kItemTypes[0]);
     for (std::size_t i = 0; i < count; ++i) {
-        choices.emplace_back(static_cast<int>(i), kItemTypesIta[i]);
+        choices.emplace_back(static_cast<int>(i), kItemTypes[i]);
     }
     return choices;
 }
@@ -90,11 +89,11 @@ std::vector<std::pair<int, std::string>> obj_apply_type_choices() {
 }
 
 std::string obj_type_name(const int type_flag) {
-    const std::size_t count = sizeof(kItemTypesIta) / sizeof(kItemTypesIta[0]);
+    const std::size_t count = sizeof(kItemTypes) / sizeof(kItemTypes[0]);
     if (type_flag >= 0 && static_cast<std::size_t>(type_flag) < count) {
-        return kItemTypesIta[type_flag];
+        return kItemTypes[type_flag];
     }
-    return "Tipo #" + std::to_string(type_flag);
+    return "Type #" + std::to_string(type_flag);
 }
 
 std::string obj_apply_type_name(const int location) {
