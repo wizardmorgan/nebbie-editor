@@ -42,6 +42,10 @@ endif()
 target_link_libraries(nebbieedit PRIVATE Qt6::Widgets Qt6::Network nebbie-core)
 target_compile_features(nebbieedit PRIVATE cxx_std_17)
 
+if(MSVC)
+    target_compile_options(nebbieedit PRIVATE "/FI${CMAKE_CURRENT_SOURCE_DIR}/msvc_qt_compat.hpp")
+endif()
+
 if(WIN32)
     set_target_properties(nebbieedit PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
