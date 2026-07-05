@@ -30,6 +30,7 @@ class QCheckBox;
 class MobEditorWidget;
 class ObjEditorWidget;
 class RoomEditorWidget;
+class ZoneEditorWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -57,6 +58,7 @@ private slots:
     void applyRoomChanges();
     void applyMobChanges();
     void applyObjChanges();
+    void applyZoneChanges();
     void createRoom();
     void createMob();
     void createObject();
@@ -65,15 +67,6 @@ private slots:
     void onObjSearchChanged(const QString& text);
     void goToExitTarget();
     void onZoneSelected();
-    void onResetSelected();
-    void onResetCommandChanged();
-    void addZoneReset();
-    void applyResetChanges();
-    void removeSelectedReset();
-    void moveResetUp();
-    void moveResetDown();
-    void goToResetRoom();
-    void goToResetEntity();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -94,12 +87,7 @@ private:
     void exportMapPng(ZoneMapWidget* view, const QString& suggested_name);
     void exportMapPng(WorldZoneMapWidget* view, const QString& suggested_name);
     void updateWorldZoneDetails(int zone_num);
-    void refreshResetList(int zone_num);
-    void updateResetFieldHints();
-    void loadResetForm(const nebbie::ResetCommand& cmd);
-    nebbie::ResetCommand readResetForm() const;
     int currentZoneNum() const;
-    int currentResetIndex() const;
     void selectZoneByNum(int zone_num);
     void selectRoomByVnum(long vnum);
     void selectMobByVnum(long vnum);
@@ -137,17 +125,7 @@ private:
     ObjEditorWidget* obj_editor_ = nullptr;
 
     QListWidget* zone_list_ = nullptr;
-    QLabel* zone_info_ = nullptr;
-    QListWidget* reset_list_ = nullptr;
-    QComboBox* reset_command_ = nullptr;
-    QLabel* reset_hint_ = nullptr;
-    QSpinBox* reset_if_flag_ = nullptr;
-    QSpinBox* reset_arg1_ = nullptr;
-    QSpinBox* reset_arg2_ = nullptr;
-    QSpinBox* reset_arg3_ = nullptr;
-    QSpinBox* reset_arg4_ = nullptr;
-    QPushButton* reset_apply_ = nullptr;
-    QPushButton* reset_remove_ = nullptr;
+    ZoneEditorWidget* zone_editor_ = nullptr;
 
     nebbie::SessionConfig session_config_;
     std::chrono::system_clock::time_point last_version_time_{};

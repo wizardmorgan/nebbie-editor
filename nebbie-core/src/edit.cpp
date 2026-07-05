@@ -244,6 +244,19 @@ void assign_room_fields(Room& room, const Room& values) {
     room.exits = values.exits;
 }
 
+void assign_zone_fields(Zone& zone, const Zone& values) {
+    zone.name = values.name;
+    zone.top = values.top;
+    zone.lifespan = values.lifespan;
+    zone.reset_mode = values.reset_mode;
+}
+
+void recompute_zone_bottoms(World& world) {
+    for (std::size_t i = 0; i < world.zones.size(); ++i) {
+        world.zones[i].bottom = (i == 0) ? 0 : world.zones[i - 1].top + 1;
+    }
+}
+
 void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
     if (!edit.name.empty()) {
         mob.name = edit.name;
@@ -633,10 +646,10 @@ std::string reset_command_summary(const ResetCommand& cmd) {
         while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
             line.pop_back();
         }
-        return std::string("Commento: ") + line;
+        return std::string("Comment: ") + line;
     }
     if (cmd.command == ';') {
-        return "Separatore";
+        return "Separator";
     }
 
     std::string summary(1, cmd.command);
@@ -648,32 +661,35 @@ std::string reset_command_summary(const ResetCommand& cmd) {
 
     switch (cmd.command) {
     case 'M':
-        summary += " (mob #" + std::to_string(cmd.arg1) + " → stanza #" + std::to_string(cmd.arg3)
+        summary += " (mob #" + std::to_string(cmd.arg1) + " -> room #" + std::to_string(cmd.arg3)
                    + ")";
         break;
     case 'O':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " → stanza #" + std::to_string(cmd.arg3)
+        summary += " (obj #" + std::to_string(cmd.arg1) + " -> room #" + std::to_string(cmd.arg3)
                    + ")";
         break;
     case 'G':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " inventario mob)";
+        summary += " (obj #" + std::to_string(cmd.arg1) + " to last mob)";
         break;
     case 'E':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " equip)";
+        summary += " (obj #" + std::to_string(cmd.arg1) + " equip pos " + std::to_string(cmd.arg3)
+                   + ")";
         break;
     case 'P':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " in contenitore #"
+        summary += " (obj #" + std::to_string(cmd.arg1) + " in container #"
                    + std::to_string(cmd.arg3) + ")";
         break;
     case 'D':
-        summary += " (stanza #" + std::to_string(cmd.arg1) + " uscita " + std::to_string(cmd.arg2)
-                   + ")";
+        summary += " (room #" + std::to_string(cmd.arg1) + " exit " + std::to_string(cmd.arg2)
+                   + " state " + std::to_string(cmd.arg3) + ")";
         break;
     case 'C':
-        summary += " (mob #" + std::to_string(cmd.arg1) + ")";
+        summary += " (mob #" + std::to_string(cmd.arg1) + " cmd " + std::to_string(cmd.arg2)
+                   + ")";
         break;
     case 'H':
-        summary += " (orario stanza)";
+        summary += " (room #" + std::to_string(cmd.arg1) + " hour " + std::to_string(cmd.arg2)
+                   + ")";
         break;
     default:
         break;

@@ -18,6 +18,8 @@ add_executable(nebbieedit
     room_editor_widget.hpp
     obj_editor_widget.cpp
     obj_editor_widget.hpp
+    zone_editor_widget.cpp
+    zone_editor_widget.hpp
     world_zone_map_widget.cpp
     world_zone_map_widget.hpp
     zone_map_widget.cpp

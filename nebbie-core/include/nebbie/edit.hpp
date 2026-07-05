@@ -26,6 +26,16 @@ struct RoomEdit {
 
 void assign_room_fields(Room& room, const Room& values);
 
+struct ZoneEdit {
+    std::string name;
+    int top = -1;
+    int lifespan = -1;
+    int reset_mode = -1;
+};
+
+void assign_zone_fields(Zone& zone, const Zone& values);
+void recompute_zone_bottoms(World& world);
+
 struct MobEdit {
     std::string name;
     std::string short_descr;
