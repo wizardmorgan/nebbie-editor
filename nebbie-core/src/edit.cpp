@@ -202,6 +202,9 @@ void apply_room_edit(Room& room, const RoomEdit& edit) {
 }
 
 void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
+    if (!edit.name.empty()) {
+        mob.name = edit.name;
+    }
     if (!edit.short_descr.empty()) {
         mob.short_descr = edit.short_descr;
     }
@@ -217,6 +220,104 @@ void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
     if (edit.alignment > -999999) {
         mob.alignment = edit.alignment;
     }
+    if (edit.act >= 0) {
+        mob.act = edit.act;
+    }
+    if (edit.affected_by >= 0) {
+        mob.affected_by = edit.affected_by;
+    }
+    if (edit.mobtype != '\0') {
+        mob.mobtype = edit.mobtype;
+    }
+    if (edit.mult_att >= 0) {
+        mob.mult_att = edit.mult_att;
+    }
+    if (edit.hitroll > -999999) {
+        mob.hitroll = edit.hitroll;
+    }
+    if (edit.ac > -999999) {
+        mob.ac = edit.ac;
+    }
+    if (edit.hit_bonus > -999999) {
+        mob.hit_bonus = edit.hit_bonus;
+    }
+    if (!edit.hit_dice.empty()) {
+        mob.hit_dice = edit.hit_dice;
+    }
+    if (!edit.dam_dice.empty()) {
+        mob.dam_dice = edit.dam_dice;
+    }
+    if (edit.extended_gold_set) {
+        mob.extended_gold = edit.extended_gold;
+    }
+    if (edit.gold >= 0) {
+        mob.gold = edit.gold;
+    }
+    if (edit.exp >= 0) {
+        mob.exp = edit.exp;
+    }
+    if (edit.race >= 0) {
+        mob.race = edit.race;
+    }
+    if (edit.position >= 0) {
+        mob.position = edit.position;
+    }
+    if (edit.default_pos >= 0) {
+        mob.default_pos = edit.default_pos;
+    }
+    if (edit.sex >= 0) {
+        mob.sex = edit.sex;
+    }
+    if (edit.extended_sex_set) {
+        mob.extended_sex = edit.extended_sex;
+    }
+    if (edit.immune >= 0) {
+        mob.immune = edit.immune;
+    }
+    if (edit.meta_immune >= 0) {
+        mob.meta_immune = edit.meta_immune;
+    }
+    if (edit.susceptible >= 0) {
+        mob.susceptible = edit.susceptible;
+    }
+    if (edit.sounds_set) {
+        mob.sounds = edit.sounds;
+    }
+    if (edit.distant_sounds_set) {
+        mob.distant_sounds = edit.distant_sounds;
+    }
+}
+
+void assign_mobile_fields(Mobile& mob, const Mobile& values) {
+    mob.name = values.name;
+    mob.short_descr = values.short_descr;
+    mob.long_descr = values.long_descr;
+    mob.description = values.description;
+    mob.act = values.act;
+    mob.affected_by = values.affected_by;
+    mob.alignment = values.alignment;
+    mob.mobtype = values.mobtype;
+    mob.mult_att = values.mult_att;
+    mob.level = values.level;
+    mob.hitroll = values.hitroll;
+    mob.ac = values.ac;
+    mob.hit_bonus = values.hit_bonus;
+    mob.hit_dice = values.hit_dice;
+    mob.dam_dice = values.dam_dice;
+    mob.extended_gold = values.extended_gold;
+    mob.gold = values.gold;
+    mob.exp = values.exp;
+    mob.race = values.race;
+    mob.position = values.position;
+    mob.default_pos = values.default_pos;
+    mob.sex = values.sex;
+    mob.extended_sex = values.extended_sex;
+    mob.immune = values.immune;
+    mob.meta_immune = values.meta_immune;
+    mob.susceptible = values.susceptible;
+    mob.sounds = values.sounds;
+    mob.distant_sounds = values.distant_sounds;
+    mob.extra_sound_strings = values.extra_sound_strings;
 }
 
 void apply_obj_edit(GameObject& obj, const ObjEdit& edit) {

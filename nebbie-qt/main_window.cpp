@@ -1,6 +1,7 @@
 #include "main_window.hpp"
 
 #include "app_config.hpp"
+#include "mob_editor_widget.hpp"
 #include "world_zone_map_widget.hpp"
 #include "zone_map_widget.hpp"
 #include "nebbie/edit.hpp"
@@ -161,22 +162,17 @@ void MainWindow::setupUi() {
     room_list_ = room_page.list;
     tabs_->addTab(room_page.page, "Stanze");
 
-    auto* mob_editor = new QWidget;
-    auto* mob_form = new QFormLayout(mob_editor);
-    mob_short_ = new QLineEdit;
-    mob_long_ = new QTextEdit;
-    mob_long_->setMinimumHeight(80);
-    mob_level_ = new QSpinBox;
-    mob_level_->setRange(0, 200);
-    mob_alignment_ = new QSpinBox;
-    mob_alignment_->setRange(-1000, 1000);
-    mob_form->addRow("Nome breve:", mob_short_);
-    mob_form->addRow("Descrizione lunga:", mob_long_);
-    mob_form->addRow("Livello:", mob_level_);
-    mob_form->addRow("Allineamento:", mob_alignment_);
+    auto* mob_scroll = new QScrollArea;
+    mob_scroll->setWidgetResizable(true);
+    mob_editor_ = new MobEditorWidget;
+    mob_scroll->setWidget(mob_editor_);
+    auto* mob_panel = new QWidget;
+    auto* mob_panel_layout = new QVBoxLayout(mob_panel);
+    mob_panel_layout->setContentsMargins(0, 0, 0, 0);
+    mob_panel_layout->addWidget(mob_scroll, 1);
     auto* mob_apply = new QPushButton("Applica modifiche");
-    mob_form->addRow(mob_apply);
-    const EntityPageWidgets mob_page = makeEntityPage(mob_editor, "Nuovo mob");
+    mob_panel_layout->addWidget(mob_apply);
+    const EntityPageWidgets mob_page = makeEntityPage(mob_panel, "Nuovo mob");
     mob_search_ = mob_page.search;
     mob_list_ = mob_page.list;
     tabs_->addTab(mob_page.page, "Mob");
@@ -1296,10 +1292,7 @@ void MainWindow::onMobSelected() {
     if (!mob) {
         return;
     }
-    mob_short_->setText(QString::fromStdString(mob->short_descr));
-    mob_long_->setPlainText(QString::fromStdString(mob->long_descr));
-    mob_level_->setValue(mob->level);
-    mob_alignment_->setValue(static_cast<int>(mob->alignment));
+    mob_editor_->loadFromMobile(*mob);
 }
 
 void MainWindow::onObjSelected() {
@@ -1374,18 +1367,17 @@ void MainWindow::applyMobChanges() {
     }
     const long vnum = static_cast<long>(item->data(Qt::UserRole).toLongLong());
 
-    nebbie::MobEdit edit;
-    edit.short_descr = mob_short_->text().toStdString();
-    edit.long_descr = mob_long_->toPlainText().toStdString();
-    edit.level = mob_level_->value();
-    edit.alignment = mob_alignment_->value();
-
-    if (!nebbie::edit_mob(world_, vnum, edit)) {
+    nebbie::Mobile* mob = world_.find_mobile(vnum);
+    if (!mob) {
         QMessageBox::warning(this, "Mob", "Mobile non trovato.");
         return;
     }
 
-    item->setText(QString("#%1 %2").arg(vnum).arg(mob_short_->text()));
+    nebbie::Mobile updated = *mob;
+    mob_editor_->saveToMobile(updated);
+    nebbie::assign_mobile_fields(*mob, updated);
+
+    item->setText(QString("#%1 %2").arg(vnum).arg(QString::fromStdString(mob->short_descr)));
     markDirty();
     setStatus(QString("Mobile %1 aggiornato in memoria.").arg(vnum));
 }

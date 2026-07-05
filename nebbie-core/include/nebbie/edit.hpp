@@ -15,12 +15,41 @@ struct RoomEdit {
 };
 
 struct MobEdit {
+    std::string name;
     std::string short_descr;
     std::string long_descr;
     std::string description;
     int level = -1;
     long alignment = -999999;
+    long act = -1;
+    long affected_by = -1;
+    char mobtype = '\0';
+    int mult_att = -1;
+    int hitroll = -999999;
+    int ac = -999999;
+    int hit_bonus = -999999;
+    std::string hit_dice;
+    std::string dam_dice;
+    bool extended_gold = false;
+    bool extended_gold_set = false;
+    long gold = -1;
+    long exp = -1;
+    long race = -1;
+    int position = -1;
+    int default_pos = -1;
+    int sex = -1;
+    bool extended_sex = false;
+    bool extended_sex_set = false;
+    long immune = -1;
+    long meta_immune = -1;
+    long susceptible = -1;
+    std::string sounds;
+    std::string distant_sounds;
+    bool sounds_set = false;
+    bool distant_sounds_set = false;
 };
+
+void assign_mobile_fields(Mobile& mob, const Mobile& values);
 
 struct ObjEdit {
     std::string short_descr;

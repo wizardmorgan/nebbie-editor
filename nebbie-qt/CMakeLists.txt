@@ -10,6 +10,10 @@ add_executable(nebbieedit
     main_window.hpp
     app_config.cpp
     app_config.hpp
+    flag_group_widget.cpp
+    flag_group_widget.hpp
+    mob_editor_widget.cpp
+    mob_editor_widget.hpp
     world_zone_map_widget.cpp
     world_zone_map_widget.hpp
     zone_map_widget.cpp
