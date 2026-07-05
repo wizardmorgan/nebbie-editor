@@ -202,6 +202,9 @@ void apply_room_edit(Room& room, const RoomEdit& edit) {
 }
 
 void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
+    if (!edit.name.empty()) {
+        mob.name = edit.name;
+    }
     if (!edit.short_descr.empty()) {
         mob.short_descr = edit.short_descr;
     }
@@ -217,21 +220,182 @@ void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
     if (edit.alignment > -999999) {
         mob.alignment = edit.alignment;
     }
+    if (edit.act >= 0) {
+        mob.act = edit.act;
+    }
+    if (edit.affected_by >= 0) {
+        mob.affected_by = edit.affected_by;
+    }
+    if (edit.mobtype != '\0') {
+        mob.mobtype = edit.mobtype;
+    }
+    if (edit.mult_att >= 0) {
+        mob.mult_att = edit.mult_att;
+    }
+    if (edit.hitroll > -999999) {
+        mob.hitroll = edit.hitroll;
+    }
+    if (edit.ac > -999999) {
+        mob.ac = edit.ac;
+    }
+    if (edit.hit_bonus > -999999) {
+        mob.hit_bonus = edit.hit_bonus;
+    }
+    if (!edit.hit_dice.empty()) {
+        mob.hit_dice = edit.hit_dice;
+    }
+    if (!edit.dam_dice.empty()) {
+        mob.dam_dice = edit.dam_dice;
+    }
+    if (edit.extended_gold_set) {
+        mob.extended_gold = edit.extended_gold;
+    }
+    if (edit.gold >= 0) {
+        mob.gold = edit.gold;
+    }
+    if (edit.exp >= 0) {
+        mob.exp = edit.exp;
+    }
+    if (edit.race >= 0) {
+        mob.race = edit.race;
+    }
+    if (edit.position >= 0) {
+        mob.position = edit.position;
+    }
+    if (edit.default_pos >= 0) {
+        mob.default_pos = edit.default_pos;
+    }
+    if (edit.sex >= 0) {
+        mob.sex = edit.sex;
+    }
+    if (edit.extended_sex_set) {
+        mob.extended_sex = edit.extended_sex;
+    }
+    if (edit.immune >= 0) {
+        mob.immune = edit.immune;
+    }
+    if (edit.meta_immune >= 0) {
+        mob.meta_immune = edit.meta_immune;
+    }
+    if (edit.susceptible >= 0) {
+        mob.susceptible = edit.susceptible;
+    }
+    if (edit.sounds_set) {
+        mob.sounds = edit.sounds;
+    }
+    if (edit.distant_sounds_set) {
+        mob.distant_sounds = edit.distant_sounds;
+    }
+}
+
+void assign_mobile_fields(Mobile& mob, const Mobile& values) {
+    mob.name = values.name;
+    mob.short_descr = values.short_descr;
+    mob.long_descr = values.long_descr;
+    mob.description = values.description;
+    mob.act = values.act;
+    mob.affected_by = values.affected_by;
+    mob.alignment = values.alignment;
+    mob.mobtype = values.mobtype;
+    mob.mult_att = values.mult_att;
+    mob.level = values.level;
+    mob.hitroll = values.hitroll;
+    mob.ac = values.ac;
+    mob.hit_bonus = values.hit_bonus;
+    mob.hit_dice = values.hit_dice;
+    mob.dam_dice = values.dam_dice;
+    mob.extended_gold = values.extended_gold;
+    mob.gold = values.gold;
+    mob.exp = values.exp;
+    mob.race = values.race;
+    mob.position = values.position;
+    mob.default_pos = values.default_pos;
+    mob.sex = values.sex;
+    mob.extended_sex = values.extended_sex;
+    mob.immune = values.immune;
+    mob.meta_immune = values.meta_immune;
+    mob.susceptible = values.susceptible;
+    mob.sounds = values.sounds;
+    mob.distant_sounds = values.distant_sounds;
+    mob.extra_sound_strings = values.extra_sound_strings;
 }
 
 void apply_obj_edit(GameObject& obj, const ObjEdit& edit) {
+    if (!edit.name.empty()) {
+        obj.name = edit.name;
+    }
     if (!edit.short_descr.empty()) {
         obj.short_descr = edit.short_descr;
     }
     if (!edit.description.empty()) {
         obj.description = edit.description;
     }
-    if (edit.cost >= 0) {
-        obj.cost = edit.cost;
+    if (!edit.action_description.empty()) {
+        obj.action_description = edit.action_description;
+    }
+    if (edit.type_flag >= 0) {
+        obj.type_flag = edit.type_flag;
+    }
+    if (edit.extra_flags >= 0) {
+        obj.extra_flags = edit.extra_flags;
+    }
+    if (edit.wear_flags >= 0) {
+        obj.wear_flags = edit.wear_flags;
+    }
+    if (edit.value0 >= 0) {
+        obj.value[0] = edit.value0;
+    }
+    if (edit.value1 >= 0) {
+        obj.value[1] = edit.value1;
+    }
+    if (edit.value2 >= 0) {
+        obj.value[2] = edit.value2;
+    }
+    if (edit.value3 >= 0) {
+        obj.value[3] = edit.value3;
     }
     if (edit.weight >= 0) {
         obj.weight = edit.weight;
     }
+    if (edit.cost >= 0) {
+        obj.cost = edit.cost;
+    }
+    if (edit.cost_per_day >= 0) {
+        obj.cost_per_day = edit.cost_per_day;
+    }
+    if (edit.has_extra_flags2_set) {
+        obj.has_extra_flags2 = edit.has_extra_flags2;
+    }
+    if (edit.extra_flags2 >= 0) {
+        obj.extra_flags2 = edit.extra_flags2;
+    }
+    if (edit.forbidden_set) {
+        obj.forbidden_char = edit.forbidden_char;
+        obj.forbidden_room = edit.forbidden_room;
+    }
+}
+
+void assign_object_fields(GameObject& obj, const GameObject& values) {
+    obj.name = values.name;
+    obj.short_descr = values.short_descr;
+    obj.description = values.description;
+    obj.action_description = values.action_description;
+    obj.type_flag = values.type_flag;
+    obj.extra_flags = values.extra_flags;
+    obj.wear_flags = values.wear_flags;
+    obj.value[0] = values.value[0];
+    obj.value[1] = values.value[1];
+    obj.value[2] = values.value[2];
+    obj.value[3] = values.value[3];
+    obj.weight = values.weight;
+    obj.cost = values.cost;
+    obj.cost_per_day = values.cost_per_day;
+    obj.extra_descs = values.extra_descs;
+    obj.affects = values.affects;
+    obj.has_extra_flags2 = values.has_extra_flags2;
+    obj.extra_flags2 = values.extra_flags2;
+    obj.forbidden_char = values.forbidden_char;
+    obj.forbidden_room = values.forbidden_room;
 }
 
 bool edit_room(World& world, long vnum, const RoomEdit& edit) {

@@ -15,19 +15,66 @@ struct RoomEdit {
 };
 
 struct MobEdit {
+    std::string name;
     std::string short_descr;
     std::string long_descr;
     std::string description;
     int level = -1;
     long alignment = -999999;
+    long act = -1;
+    long affected_by = -1;
+    char mobtype = '\0';
+    int mult_att = -1;
+    int hitroll = -999999;
+    int ac = -999999;
+    int hit_bonus = -999999;
+    std::string hit_dice;
+    std::string dam_dice;
+    bool extended_gold = false;
+    bool extended_gold_set = false;
+    long gold = -1;
+    long exp = -1;
+    long race = -1;
+    int position = -1;
+    int default_pos = -1;
+    int sex = -1;
+    bool extended_sex = false;
+    bool extended_sex_set = false;
+    long immune = -1;
+    long meta_immune = -1;
+    long susceptible = -1;
+    std::string sounds;
+    std::string distant_sounds;
+    bool sounds_set = false;
+    bool distant_sounds_set = false;
 };
 
+void assign_mobile_fields(Mobile& mob, const Mobile& values);
+
 struct ObjEdit {
+    std::string name;
     std::string short_descr;
     std::string description;
-    int cost = -1;
+    std::string action_description;
+    int type_flag = -1;
+    long extra_flags = -1;
+    long wear_flags = -1;
+    int value0 = -1;
+    int value1 = -1;
+    int value2 = -1;
+    int value3 = -1;
     int weight = -1;
+    int cost = -1;
+    int cost_per_day = -1;
+    bool has_extra_flags2 = false;
+    bool has_extra_flags2_set = false;
+    long extra_flags2 = -1;
+    std::string forbidden_char;
+    std::string forbidden_room;
+    bool forbidden_set = false;
 };
+
+void assign_object_fields(GameObject& obj, const GameObject& values);
 
 struct ExitEdit {
     int direction = 0;

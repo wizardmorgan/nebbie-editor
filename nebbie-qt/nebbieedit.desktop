@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Nebbie Editor
+Comment=Editor di mondo per Nebbie Arcane
+Exec=nebbieedit
+Icon=nebbieedit
+Terminal=false
+Categories=Development;Game;
