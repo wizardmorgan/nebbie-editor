@@ -199,9 +199,68 @@ void apply_room_edit(Room& room, const RoomEdit& edit) {
     if (edit.room_flags >= 0) {
         room.room_flags = edit.room_flags;
     }
+    if (edit.tele_time >= 0) {
+        room.tele_time = edit.tele_time;
+    }
+    if (edit.tele_targ >= 0) {
+        room.tele_targ = edit.tele_targ;
+    }
+    if (edit.tele_mask >= 0) {
+        room.tele_mask = edit.tele_mask;
+    }
+    if (edit.tele_cnt >= 0) {
+        room.tele_cnt = edit.tele_cnt;
+    }
+    if (edit.river_speed >= 0) {
+        room.river_speed = edit.river_speed;
+    }
+    if (edit.river_dir >= 0) {
+        room.river_dir = edit.river_dir;
+    }
+    if (edit.moblim >= 0) {
+        room.moblim = edit.moblim;
+    }
+    if (edit.bright_set) {
+        room.bright_at_night = edit.bright_at_night;
+        room.bright_at_day = edit.bright_at_day;
+    }
+}
+
+void assign_room_fields(Room& room, const Room& values) {
+    room.name = values.name;
+    room.description = values.description;
+    room.room_flags = values.room_flags;
+    room.sector_type = values.sector_type;
+    room.tele_time = values.tele_time;
+    room.tele_targ = values.tele_targ;
+    room.tele_mask = values.tele_mask;
+    room.tele_cnt = values.tele_cnt;
+    room.river_speed = values.river_speed;
+    room.river_dir = values.river_dir;
+    room.moblim = values.moblim;
+    room.bright_at_night = values.bright_at_night;
+    room.bright_at_day = values.bright_at_day;
+    room.extra_descs = values.extra_descs;
+    room.exits = values.exits;
+}
+
+void assign_zone_fields(Zone& zone, const Zone& values) {
+    zone.name = values.name;
+    zone.top = values.top;
+    zone.lifespan = values.lifespan;
+    zone.reset_mode = values.reset_mode;
+}
+
+void recompute_zone_bottoms(World& world) {
+    for (std::size_t i = 0; i < world.zones.size(); ++i) {
+        world.zones[i].bottom = (i == 0) ? 0 : world.zones[i - 1].top + 1;
+    }
 }
 
 void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
+    if (!edit.name.empty()) {
+        mob.name = edit.name;
+    }
     if (!edit.short_descr.empty()) {
         mob.short_descr = edit.short_descr;
     }
@@ -217,21 +276,182 @@ void apply_mob_edit(Mobile& mob, const MobEdit& edit) {
     if (edit.alignment > -999999) {
         mob.alignment = edit.alignment;
     }
+    if (edit.act >= 0) {
+        mob.act = edit.act;
+    }
+    if (edit.affected_by >= 0) {
+        mob.affected_by = edit.affected_by;
+    }
+    if (edit.mobtype != '\0') {
+        mob.mobtype = edit.mobtype;
+    }
+    if (edit.mult_att >= 0) {
+        mob.mult_att = edit.mult_att;
+    }
+    if (edit.hitroll > -999999) {
+        mob.hitroll = edit.hitroll;
+    }
+    if (edit.ac > -999999) {
+        mob.ac = edit.ac;
+    }
+    if (edit.hit_bonus > -999999) {
+        mob.hit_bonus = edit.hit_bonus;
+    }
+    if (!edit.hit_dice.empty()) {
+        mob.hit_dice = edit.hit_dice;
+    }
+    if (!edit.dam_dice.empty()) {
+        mob.dam_dice = edit.dam_dice;
+    }
+    if (edit.extended_gold_set) {
+        mob.extended_gold = edit.extended_gold;
+    }
+    if (edit.gold >= 0) {
+        mob.gold = edit.gold;
+    }
+    if (edit.exp >= 0) {
+        mob.exp = edit.exp;
+    }
+    if (edit.race >= 0) {
+        mob.race = edit.race;
+    }
+    if (edit.position >= 0) {
+        mob.position = edit.position;
+    }
+    if (edit.default_pos >= 0) {
+        mob.default_pos = edit.default_pos;
+    }
+    if (edit.sex >= 0) {
+        mob.sex = edit.sex;
+    }
+    if (edit.extended_sex_set) {
+        mob.extended_sex = edit.extended_sex;
+    }
+    if (edit.immune >= 0) {
+        mob.immune = edit.immune;
+    }
+    if (edit.meta_immune >= 0) {
+        mob.meta_immune = edit.meta_immune;
+    }
+    if (edit.susceptible >= 0) {
+        mob.susceptible = edit.susceptible;
+    }
+    if (edit.sounds_set) {
+        mob.sounds = edit.sounds;
+    }
+    if (edit.distant_sounds_set) {
+        mob.distant_sounds = edit.distant_sounds;
+    }
+}
+
+void assign_mobile_fields(Mobile& mob, const Mobile& values) {
+    mob.name = values.name;
+    mob.short_descr = values.short_descr;
+    mob.long_descr = values.long_descr;
+    mob.description = values.description;
+    mob.act = values.act;
+    mob.affected_by = values.affected_by;
+    mob.alignment = values.alignment;
+    mob.mobtype = values.mobtype;
+    mob.mult_att = values.mult_att;
+    mob.level = values.level;
+    mob.hitroll = values.hitroll;
+    mob.ac = values.ac;
+    mob.hit_bonus = values.hit_bonus;
+    mob.hit_dice = values.hit_dice;
+    mob.dam_dice = values.dam_dice;
+    mob.extended_gold = values.extended_gold;
+    mob.gold = values.gold;
+    mob.exp = values.exp;
+    mob.race = values.race;
+    mob.position = values.position;
+    mob.default_pos = values.default_pos;
+    mob.sex = values.sex;
+    mob.extended_sex = values.extended_sex;
+    mob.immune = values.immune;
+    mob.meta_immune = values.meta_immune;
+    mob.susceptible = values.susceptible;
+    mob.sounds = values.sounds;
+    mob.distant_sounds = values.distant_sounds;
+    mob.extra_sound_strings = values.extra_sound_strings;
 }
 
 void apply_obj_edit(GameObject& obj, const ObjEdit& edit) {
+    if (!edit.name.empty()) {
+        obj.name = edit.name;
+    }
     if (!edit.short_descr.empty()) {
         obj.short_descr = edit.short_descr;
     }
     if (!edit.description.empty()) {
         obj.description = edit.description;
     }
-    if (edit.cost >= 0) {
-        obj.cost = edit.cost;
+    if (!edit.action_description.empty()) {
+        obj.action_description = edit.action_description;
+    }
+    if (edit.type_flag >= 0) {
+        obj.type_flag = edit.type_flag;
+    }
+    if (edit.extra_flags >= 0) {
+        obj.extra_flags = edit.extra_flags;
+    }
+    if (edit.wear_flags >= 0) {
+        obj.wear_flags = edit.wear_flags;
+    }
+    if (edit.value0 >= 0) {
+        obj.value[0] = edit.value0;
+    }
+    if (edit.value1 >= 0) {
+        obj.value[1] = edit.value1;
+    }
+    if (edit.value2 >= 0) {
+        obj.value[2] = edit.value2;
+    }
+    if (edit.value3 >= 0) {
+        obj.value[3] = edit.value3;
     }
     if (edit.weight >= 0) {
         obj.weight = edit.weight;
     }
+    if (edit.cost >= 0) {
+        obj.cost = edit.cost;
+    }
+    if (edit.cost_per_day >= 0) {
+        obj.cost_per_day = edit.cost_per_day;
+    }
+    if (edit.has_extra_flags2_set) {
+        obj.has_extra_flags2 = edit.has_extra_flags2;
+    }
+    if (edit.extra_flags2 >= 0) {
+        obj.extra_flags2 = edit.extra_flags2;
+    }
+    if (edit.forbidden_set) {
+        obj.forbidden_char = edit.forbidden_char;
+        obj.forbidden_room = edit.forbidden_room;
+    }
+}
+
+void assign_object_fields(GameObject& obj, const GameObject& values) {
+    obj.name = values.name;
+    obj.short_descr = values.short_descr;
+    obj.description = values.description;
+    obj.action_description = values.action_description;
+    obj.type_flag = values.type_flag;
+    obj.extra_flags = values.extra_flags;
+    obj.wear_flags = values.wear_flags;
+    obj.value[0] = values.value[0];
+    obj.value[1] = values.value[1];
+    obj.value[2] = values.value[2];
+    obj.value[3] = values.value[3];
+    obj.weight = values.weight;
+    obj.cost = values.cost;
+    obj.cost_per_day = values.cost_per_day;
+    obj.extra_descs = values.extra_descs;
+    obj.affects = values.affects;
+    obj.has_extra_flags2 = values.has_extra_flags2;
+    obj.extra_flags2 = values.extra_flags2;
+    obj.forbidden_char = values.forbidden_char;
+    obj.forbidden_room = values.forbidden_room;
 }
 
 bool edit_room(World& world, long vnum, const RoomEdit& edit) {
@@ -426,10 +646,10 @@ std::string reset_command_summary(const ResetCommand& cmd) {
         while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
             line.pop_back();
         }
-        return std::string("Commento: ") + line;
+        return std::string("Comment: ") + line;
     }
     if (cmd.command == ';') {
-        return "Separatore";
+        return "Separator";
     }
 
     std::string summary(1, cmd.command);
@@ -441,32 +661,35 @@ std::string reset_command_summary(const ResetCommand& cmd) {
 
     switch (cmd.command) {
     case 'M':
-        summary += " (mob #" + std::to_string(cmd.arg1) + " → stanza #" + std::to_string(cmd.arg3)
+        summary += " (mob #" + std::to_string(cmd.arg1) + " -> room #" + std::to_string(cmd.arg3)
                    + ")";
         break;
     case 'O':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " → stanza #" + std::to_string(cmd.arg3)
+        summary += " (obj #" + std::to_string(cmd.arg1) + " -> room #" + std::to_string(cmd.arg3)
                    + ")";
         break;
     case 'G':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " inventario mob)";
+        summary += " (obj #" + std::to_string(cmd.arg1) + " to last mob)";
         break;
     case 'E':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " equip)";
+        summary += " (obj #" + std::to_string(cmd.arg1) + " equip pos " + std::to_string(cmd.arg3)
+                   + ")";
         break;
     case 'P':
-        summary += " (obj #" + std::to_string(cmd.arg1) + " in contenitore #"
+        summary += " (obj #" + std::to_string(cmd.arg1) + " in container #"
                    + std::to_string(cmd.arg3) + ")";
         break;
     case 'D':
-        summary += " (stanza #" + std::to_string(cmd.arg1) + " uscita " + std::to_string(cmd.arg2)
-                   + ")";
+        summary += " (room #" + std::to_string(cmd.arg1) + " exit " + std::to_string(cmd.arg2)
+                   + " state " + std::to_string(cmd.arg3) + ")";
         break;
     case 'C':
-        summary += " (mob #" + std::to_string(cmd.arg1) + ")";
+        summary += " (mob #" + std::to_string(cmd.arg1) + " cmd " + std::to_string(cmd.arg2)
+                   + ")";
         break;
     case 'H':
-        summary += " (orario stanza)";
+        summary += " (room #" + std::to_string(cmd.arg1) + " hour " + std::to_string(cmd.arg2)
+                   + ")";
         break;
     default:
         break;

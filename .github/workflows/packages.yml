@@ -1,0 +1,114 @@
+name: Packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["cursor/**", "master"]
+    tags: ["v*"]
+
+jobs:
+  package-linux-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch nebbietest data
+        run: ./scripts/fetch-test-data.sh
+
+      - name: Install dependencies
+        run: ./scripts/install-deps.sh
+
+      - name: Build .deb package
+        run: ./scripts/package-deb.sh
+
+      - name: Verify package
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb | head -20
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebbie-editor-deb-linux-amd64
+          path: dist/*.deb
+          if-no-files-found: error
+
+  package-macos-dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch nebbietest data
+        run: ./scripts/fetch-test-data.sh
+
+      - name: Install dependencies
+        run: ./scripts/install-deps.sh
+
+      - name: Build macOS icon
+        run: |
+          if [[ -f nebbie-qt/icons/nebbieedit.icns ]]; then
+            echo "Using committed nebbieedit.icns"
+          else
+            pip3 install pillow --break-system-packages
+            python3 scripts/make-macos-icon.py
+          fi
+
+      - name: Build .dmg package
+        run: |
+          export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+          ./scripts/package-dmg.sh
+
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebbie-editor-dmg-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  package-windows-zip:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch nebbietest data
+        shell: pwsh
+        run: ./scripts/fetch-test-data.ps1
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.5.3"
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+
+      - name: Build Windows icon
+        shell: bash
+        run: |
+          if [ -f nebbie-qt/icons/nebbieedit.ico ]; then
+            echo "Using committed nebbieedit.ico"
+          else
+            pip install pillow
+            python scripts/make-windows-icon.py
+          fi
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Windows zip and installer
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebbie-editor-zip-windows
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebbie-editor-installer-windows
+          path: dist/*_windows_setup.exe
+          if-no-files-found: error

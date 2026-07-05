@@ -1,6 +1,7 @@
 #include "nebbie/io.hpp"
 
 #include "nebbie/fread.hpp"
+#include "nebbie/file_io.hpp"
 
 #include <cctype>
 #include <cstdio>
@@ -9,26 +10,6 @@
 namespace nebbie {
 
 namespace {
-
-FILE* open_read(const std::filesystem::path& path) {
-    FILE* fp = std::fopen(path.string().c_str(), "r");
-    if (!fp) {
-        throw ParseError("Unable to open special proc file: " + path.string());
-    }
-    return fp;
-}
-
-FILE* open_write(const std::filesystem::path& path) {
-    std::error_code ec;
-    if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path(), ec);
-    }
-    FILE* fp = std::fopen(path.string().c_str(), "w");
-    if (!fp) {
-        throw ParseError("Unable to write special proc file: " + path.string());
-    }
-    return fp;
-}
 
 void trim(std::string& value) {
     while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
@@ -87,7 +68,7 @@ SpecialProc parse_special_line(const std::string& line) {
 void load_myst_spe(World& world, const std::filesystem::path& path, ProgressCallback progress) {
     world.special_procs.clear();
 
-    FILE* fp = open_read(path);
+    FILE* fp = open_file_read(path, "special proc file");
     if (progress) {
         progress("Loading " + path.string());
     }
@@ -121,7 +102,7 @@ void load_myst_spe(World& world, const std::filesystem::path& path, ProgressCall
 }
 
 void save_myst_spe(const World& world, const std::filesystem::path& path, ProgressCallback progress) {
-    FILE* fp = open_write(path);
+    FILE* fp = open_file_write(path, "special proc file");
     if (progress) {
         progress("Writing " + path.string());
     }

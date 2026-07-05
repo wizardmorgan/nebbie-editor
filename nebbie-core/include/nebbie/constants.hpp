@@ -13,6 +13,11 @@ constexpr const char* SOCIAL_FILE = "myst.act";
 constexpr const char* POSE_FILE = "myst.pos";
 constexpr const char* GUILD_FILE = "myst.gui";
 
+constexpr const char* OVERLAY_ROOMS_DIR = "rooms";
+constexpr const char* OVERLAY_OBJECTS_DIR = "objects";
+constexpr const char* OVERLAY_MOBILES_DIR = "mobiles";
+constexpr const char* OVERLAY_ZONES_DIR = "zones";
+
 constexpr int MAX_DIR = 6;
 
 } // namespace nebbie

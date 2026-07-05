@@ -1,6 +1,6 @@
 # Nebbie Editor
 
-Editor di mondo per [Nebbie Arcane](https://github.com/NebbieArcane/Server), sviluppato per **Linux** e **macOS**.
+Editor di mondo per [Nebbie Arcane](https://github.com/NebbieArcane/Server), sviluppato per **Linux**, **macOS** e **Windows**.
 
 Questo repository è indipendente dal codice del server: non servono permessi sull'organizzazione `NebbieArcane`. Il riferimento di formato è il codice in `NebbieArcane/Server` (`src/db.cpp`, `src/db.hpp`).
 
@@ -19,12 +19,35 @@ Questo repository è indipendente dal codice del server: non servono permessi su
 | `myst.pos` | Pose | Lettura/scrittura |
 | `myst.gui` | Gilde | Lettura/scrittura |
 
-## Build (Linux e macOS)
+## Build (Linux, macOS, Windows)
 
 ```bash
-./scripts/install-deps.sh    # dipendenze di sistema
+./scripts/install-deps.sh    # dipendenze di sistema (Linux/macOS)
 ./scripts/build.sh --test    # configure, build, test
 ```
+
+### Windows
+
+```powershell
+.\scripts\install-deps.ps1
+$env:CMAKE_PREFIX_PATH = "C:\Qt\6.5.3\msvc2019_64"   # adatta alla tua installazione Qt
+.\scripts\build.ps1 -Test
+.\build\nebbiedit\Release\nebbiedit.exe info tests\fixtures
+.\build\nebbie-qt\Release\nebbieedit.exe tests\fixtures
+```
+
+Pacchetto portatile e installer:
+
+```powershell
+.\scripts\package-windows.ps1              # zip + installer
+.\scripts\package-windows-installer.ps1    # solo setup .exe
+# dist\nebbie-editor_<version>_windows.zip
+# dist\nebbie-editor_<version>_windows_setup.exe
+```
+
+Richiede [Inno Setup 6](https://jrsoftware.org/isinfo.php) per l’installer (`winget install JRSoftware.InnoSetup`).
+
+Config libreria predefinita (GUI): `%APPDATA%\Nebbie\nebbieedit.conf`
 
 ### Linux (Debian/Ubuntu)
 
@@ -49,10 +72,30 @@ App bundle macOS (opzionale):
 
 ```bash
 ./scripts/build.sh --macos-bundle
-open build/nebbie-qt/nebbieedit.app
+./scripts/install-macos.sh          # copia in /Applications
+open /Applications/nebbieedit.app   # primo avvio: selezione lib salvata in config
 ```
 
-Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
+Installazione Linux:
+
+```bash
+./scripts/install-linux.sh ~/.local
+```
+
+Pacchetti installabili:
+
+```bash
+# Debian/Ubuntu (.deb) — su Linux
+./scripts/package-deb.sh
+sudo dpkg -i dist/nebbie-editor_*_amd64.deb
+sudo apt-get install -f
+
+# macOS (.dmg) — su macOS
+./scripts/package-dmg.sh
+open dist/nebbie-editor_*_macos.dmg
+```
+
+Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md) · Riepilogo progetto: [docs/PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)
 
 ## Uso CLI (MVP)
 
@@ -72,7 +115,7 @@ Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md)
 
 ## Interfaccia grafica (Qt)
 
-Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva.
+Richiede Qt 6. Funzioni: browse/edit stanze-mob-oggetti, creazione entità, ricerca, uscite, reset zona, valida, salva, **autosalvataggio** e cronologia versioni (`.nebbie/` nella lib).
 
 ```bash
 ./build/nebbie-qt/nebbieedit /path/to/mudroot/lib

@@ -1,4 +1,5 @@
 #include "nebbie/io.hpp"
+#include "nebbie/overlay_io.hpp"
 
 #include "nebbie/constants.hpp"
 
@@ -92,6 +93,15 @@ void load_lib(World& world,
     load_if_exists(resolved / GUILD_FILE, context.has_gui, [&]() {
         load_myst_gui(world, resolved / GUILD_FILE, progress);
     });
+
+    const OverlayImportReport overlay_report = apply_overlays(world, resolved, progress);
+    if (progress && (overlay_report.rooms > 0 || overlay_report.objects > 0 || overlay_report.mobiles > 0
+                     || overlay_report.zone_resets > 0)) {
+        progress("Applied overlays: rooms=" + std::to_string(overlay_report.rooms) + " objects="
+                 + std::to_string(overlay_report.objects) + " mobiles="
+                 + std::to_string(overlay_report.mobiles) + " zone_resets="
+                 + std::to_string(overlay_report.zone_resets));
+    }
 }
 
 void save_lib(const World& world, const LibContext& context, ProgressCallback progress) {

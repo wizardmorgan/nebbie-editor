@@ -1,4 +1,5 @@
 build/
+dist/
 cmake-build-*/
 .cache/
 *.o
@@ -12,3 +13,7 @@ cmake-build-*/
 .vscode/
 *.user
 vendor/nebbietest/
+tests/fixtures/rooms/
+tests/fixtures/objects/
+tests/fixtures/mobiles/
+tests/fixtures/zones/

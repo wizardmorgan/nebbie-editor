@@ -28,6 +28,10 @@ if(APPLE AND NEBBIE_BUILD_QT)
     endif()
 endif()
 
+if(MSVC)
+    add_compile_options(/utf-8 /EHsc)
+endif()
+
 add_subdirectory(nebbie-core)
 add_subdirectory(nebbiedit)
 
@@ -39,6 +43,7 @@ if(NEBBIE_BUILD_QT)
         message(STATUS "Qt6 not found — nebbie-qt GUI will not be built")
         message(STATUS "  Linux: sudo apt install qt6-base-dev")
         message(STATUS "  macOS: brew install qt@6 && export CMAKE_PREFIX_PATH=\"$(brew --prefix qt@6)\"")
+        message(STATUS "  Windows: install Qt 6 (MSVC) and set CMAKE_PREFIX_PATH to the kit root")
     endif()
 endif()
 

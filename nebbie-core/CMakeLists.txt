@@ -1,5 +1,6 @@
 add_library(nebbie-core
     src/fread.cpp
+    src/file_io.cpp
     src/world.cpp
     src/zon_io.cpp
     src/wld_io.cpp
@@ -15,7 +16,19 @@ add_library(nebbie-core
     src/lib_context.cpp
     src/validate.cpp
     src/edit.cpp
+    src/session.cpp
+    src/zone_graph.cpp
+    src/mob_catalog.cpp
+    src/obj_catalog.cpp
+    src/room_catalog.cpp
+    src/zone_catalog.cpp
+    src/world_index.cpp
+    src/overlay_io.cpp
 )
 
 target_include_directories(nebbie-core PUBLIC include)
 target_compile_features(nebbie-core PUBLIC cxx_std_17)
+
+if(MINGW)
+    target_link_libraries(nebbie-core PUBLIC stdc++fs)
+endif()
