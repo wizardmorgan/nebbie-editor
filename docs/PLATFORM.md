@@ -115,6 +115,8 @@ L’installer Inno Setup (`.exe`) aggiunge collegamenti nel menu Start, opzione 
 
 **Installer:** installa Inno Setup 6, poi `.\scripts\package-windows-installer.ps1`.
 
+Manuale installazione completo (Linux `.deb`, macOS `.dmg`, Windows zip/installer): [MANUALE_INSTALLAZIONE.md](MANUALE_INSTALLAZIONE.md)
+
 ## Risoluzione problemi
 
 ### Windows: Qt non trovato

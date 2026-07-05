@@ -95,7 +95,7 @@ sudo apt-get install -f
 open dist/nebbie-editor_*_macos.dmg
 ```
 
-Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md) · Riepilogo progetto: [docs/PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)
+Guida completa: [docs/PLATFORM.md](docs/PLATFORM.md) · **Installazione:** [docs/MANUALE_INSTALLAZIONE.md](docs/MANUALE_INSTALLAZIONE.md) · Riepilogo progetto: [docs/PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)
 
 ## Uso CLI (MVP)
 
