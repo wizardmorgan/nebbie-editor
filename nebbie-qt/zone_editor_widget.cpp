@@ -29,6 +29,8 @@ QLabel* makeLegend(const QString& text, QWidget* parent) {
     auto* label = new QLabel(text, parent);
     label->setWordWrap(true);
     label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    label->setStyleSheet(QStringLiteral("QLabel { padding: 6px 8px; background: palette(base); "
+                                        "border: 1px solid palette(mid); border-radius: 4px; }"));
     return label;
 }
 
@@ -64,9 +66,19 @@ ZoneEditorWidget::ZoneEditorWidget(QWidget* parent) : QWidget(parent) {
     auto* info_tab = new QWidget;
     auto* info_layout = new QVBoxLayout(info_tab);
     info_layout->addWidget(makeLegend(
-        "Zone header in myst.zon: #<num>, name~, then top lifespan reset_mode. "
-        "bottom vnum is derived from the previous zone top + 1. "
-        "lifespan is real-time minutes between resets. reset_mode: 0=never, 1=when deserted, 2=normal.",
+        "Zone header in myst.zon\n"
+        "  #<zone_num>\n"
+        "  <name>~\n"
+        "  <top vnum> <lifespan> <reset_mode>\n"
+        "\n"
+        "bottom vnum — derived from previous zone top + 1 (read-only here).\n"
+        "\n"
+        "lifespan — real-time minutes between zone resets.\n"
+        "\n"
+        "reset_mode:\n"
+        "  0 = Never reset\n"
+        "  1 = Reset when deserted\n"
+        "  2 = Normal reset",
         info_tab));
     auto* info_form = new QFormLayout;
     zone_num_label_ = new QLabel("-");
@@ -93,9 +105,15 @@ ZoneEditorWidget::ZoneEditorWidget(QWidget* parent) : QWidget(parent) {
     auto* reset_tab = new QWidget;
     auto* reset_layout = new QVBoxLayout(reset_tab);
     reset_layout->addWidget(makeLegend(
-        "Reset commands run in order when the zone resets. if_flag: 0=always, 1=only if the previous "
-        "command succeeded. G/E/P depend on the last M or O command. Comments (*) and separators (;) "
-        "are shown read-only. Table ends with S in myst.zon.",
+        "Reset commands run in order when the zone resets.\n"
+        "\n"
+        "if_flag:\n"
+        "  0 = always execute\n"
+        "  1 = only if the previous command succeeded\n"
+        "\n"
+        "G / E / P depend on the last M or O command.\n"
+        "Comments (*) and separators (;) are read-only.\n"
+        "The table ends with S in myst.zon.",
         reset_tab));
     reset_list_ = new QListWidget;
     reset_list_->setMinimumHeight(140);

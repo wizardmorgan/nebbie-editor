@@ -14,6 +14,7 @@
 #include <QSizePolicy>
 #include <QSpinBox>
 #include <QTabWidget>
+#include <QFont>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
@@ -28,6 +29,18 @@ void configureLineField(QLineEdit* field) {
 void configureTextField(QTextEdit* field, const int min_height) {
     field->setMinimumHeight(min_height);
     field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+}
+
+void configureDescriptionField(QTextEdit* field) {
+    field->setMinimumWidth(560);
+    field->setMinimumHeight(320);
+    field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    field->setLineWrapMode(QTextEdit::NoWrap);
+    field->setAcceptRichText(false);
+    QFont font = field->font();
+    font.setFamily(QStringLiteral("Monospace"));
+    font.setStyleHint(QFont::Monospace);
+    field->setFont(font);
 }
 
 QLabel* makeLegend(const QString& text, QWidget* parent) {
@@ -85,13 +98,15 @@ RoomEditorWidget::RoomEditorWidget(QWidget* parent) : QWidget(parent) {
     auto* tabs = new QTabWidget;
 
     auto* text_tab = new QWidget;
-    auto* text_form = new QFormLayout(text_tab);
+    auto* text_layout = new QVBoxLayout(text_tab);
     name_ = new QLineEdit;
     configureLineField(name_);
     description_ = new QTextEdit;
-    configureTextField(description_, 130);
-    text_form->addRow("Name:", name_);
-    text_form->addRow("Description:", description_);
+    configureDescriptionField(description_);
+    text_layout->addWidget(new QLabel("Name:"));
+    text_layout->addWidget(name_);
+    text_layout->addWidget(new QLabel("Description:"));
+    text_layout->addWidget(description_, 1);
     tabs->addTab(text_tab, "Text");
 
     auto* sector_tab = new QWidget;
