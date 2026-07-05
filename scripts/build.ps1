@@ -33,7 +33,7 @@ if ($Generator) {
     $CmakeArgs += @("-G", $Generator)
 } elseif (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
   if (Get-Command cl -ErrorAction SilentlyContinue) {
-    $CmakeArgs += @("-G", "Visual Studio 17 2022", "-A", "x64")
+    $CmakeArgs += @("-G", "Visual Studio 17 2022", "-A", "x64", "-T", "v142")
   }
 }
 
