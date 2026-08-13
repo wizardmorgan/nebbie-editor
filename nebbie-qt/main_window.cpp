@@ -1,6 +1,7 @@
 #include "main_window.hpp"
 
 #include "app_config.hpp"
+#include "application_log.hpp"
 #include "coordinator_client.hpp"
 #include "mob_editor_widget.hpp"
 #include "obj_editor_widget.hpp"
@@ -123,9 +124,11 @@ void MainWindow::setupUi() {
     auto* room_buttons = new QHBoxLayout;
     auto* room_apply = new QPushButton("Apply changes");
     auto* room_sync_exits = new QPushButton("Allinea uscite in entrata");
+    auto* room_align_all_exits = new QPushButton("Allinea tutte le uscite");
     auto* room_goto_exit = new QPushButton("Go to exit target");
     room_buttons->addWidget(room_apply);
     room_buttons->addWidget(room_sync_exits);
+    room_buttons->addWidget(room_align_all_exits);
     room_buttons->addWidget(room_goto_exit);
     room_buttons->addStretch();
     room_panel_layout->addLayout(room_buttons);
@@ -291,6 +294,9 @@ void MainWindow::setupUi() {
     connect(obj_list_, &QListWidget::currentRowChanged, this, [this](int) { onObjSelected(); });
     connect(room_apply, &QPushButton::clicked, this, &MainWindow::applyRoomChanges);
     connect(room_sync_exits, &QPushButton::clicked, this, &MainWindow::syncInboundExitLabels);
+    connect(room_align_all_exits, &QPushButton::clicked, this, [this]() {
+        alignAllInboundExitDescriptions(false);
+    });
     connect(room_goto_exit, &QPushButton::clicked, this, &MainWindow::goToExitTarget);
     connect(mob_apply, &QPushButton::clicked, this, &MainWindow::applyMobChanges);
     connect(obj_apply, &QPushButton::clicked, this, &MainWindow::applyObjChanges);
@@ -428,6 +434,10 @@ void MainWindow::setupMenus() {
     tools_menu->addSeparator();
     auto* export_overlays_action = tools_menu->addAction("Esporta overlay...");
     connect(export_overlays_action, &QAction::triggered, this, &MainWindow::exportOverlays);
+    auto* align_all_exits_action = tools_menu->addAction("Allinea tutte le uscite in entrata...");
+    connect(align_all_exits_action, &QAction::triggered, this, [this]() {
+        alignAllInboundExitDescriptions(false);
+    });
 
     auto* coordinator_menu = menuBar()->addMenu("&Coordinator");
     auto* coordinator_config_action = coordinator_menu->addAction("Configuration...");
@@ -552,7 +562,7 @@ void MainWindow::loadLib(const std::filesystem::path& path) {
     lib_label_->setText(label);
     last_version_time_ = std::chrono::system_clock::now();
     autosave_timer_->start();
-    setStatus("Libreria caricata.");
+    alignAllInboundExitDescriptions(true);
 }
 
 void MainWindow::refreshRoomList() {
@@ -1504,6 +1514,78 @@ void MainWindow::syncInboundExitLabels() {
     setStatus(QString("Stanza %1: le etichette delle uscite in entrata sono già allineate a \"%2\".")
                   .arg(vnum)
                   .arg(QString::fromStdString(room->name)));
+}
+
+void MainWindow::showExitAlignmentReport(const QString& text,
+                                         const nebbie::ExitAlignmentReport& report) {
+    QDialog dialog(this);
+    dialog.setWindowTitle("Allineamento uscite in entrata");
+
+    auto* layout = new QVBoxLayout(&dialog);
+    auto* summary = new QLabel;
+    summary->setWordWrap(true);
+    if (report.exits_aligned > 0) {
+        summary->setText(QString("Allineate %1 uscite su %2 controllate.")
+                           .arg(static_cast<qlonglong>(report.exits_aligned))
+                           .arg(static_cast<qlonglong>(report.exits_checked)));
+    } else {
+        summary->setText(QString("Tutte le %1 uscite controllate erano già allineate.")
+                           .arg(static_cast<qlonglong>(report.exits_checked)));
+    }
+    layout->addWidget(summary);
+
+    auto* details = new QTextEdit(&dialog);
+    details->setReadOnly(true);
+    details->setPlainText(text);
+    details->setMinimumSize(720, 420);
+    layout->addWidget(details, 1);
+
+    auto* log_hint = new QLabel(QString("Log applicazione: %1").arg(nebbie::qt::application_log_path()),
+                                &dialog);
+    log_hint->setWordWrap(true);
+    log_hint->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(log_hint);
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+
+    dialog.resize(820, 560);
+    dialog.exec();
+}
+
+void MainWindow::alignAllInboundExitDescriptions(const bool on_library_open) {
+    if (lib_path_.empty()) {
+        QMessageBox::information(this, "Stanze", "Apri prima una libreria.");
+        return;
+    }
+
+    const nebbie::ExitAlignmentReport report = nebbie::align_all_inbound_exit_descriptions(world_);
+    const QString context = on_library_open
+                                ? QStringLiteral("Allineamento uscite in entrata (apertura libreria)")
+                                : QStringLiteral("Allineamento uscite in entrata (manuale)");
+    const QString text = nebbie::qt::format_exit_alignment_report(
+        report, context, nebbie::qt::qstring_from_path(lib_path_));
+    nebbie::qt::append_application_log(text);
+    showExitAlignmentReport(text, report);
+
+    if (report.exits_aligned > 0) {
+        markDirty();
+        const long current = currentRoomVnum();
+        if (current > 0) {
+            reloadRoomEditor(current);
+        }
+    }
+
+    if (on_library_open) {
+        setStatus(QString("Libreria caricata: %1 uscite allineate, %2 già corrette.")
+                      .arg(static_cast<qlonglong>(report.exits_aligned))
+                      .arg(static_cast<qlonglong>(report.exits_already_ok)));
+    } else {
+        setStatus(QString("Allineamento uscite: %1 modificate, %2 già corrette.")
+                      .arg(static_cast<qlonglong>(report.exits_aligned))
+                      .arg(static_cast<qlonglong>(report.exits_already_ok)));
+    }
 }
 
 void MainWindow::reloadRoomEditor(long vnum) {

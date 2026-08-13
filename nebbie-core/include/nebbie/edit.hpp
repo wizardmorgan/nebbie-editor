@@ -4,6 +4,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 namespace nebbie {
 
@@ -137,6 +138,25 @@ const Exit* find_room_exit(const Room& room, int direction);
 
 // Set exit.description on every exit that leads to target_vnum to the destination room name.
 std::size_t refresh_inbound_exit_descriptions(World& world, long target_vnum);
+
+struct ExitAlignmentChange {
+    long from_vnum = 0;
+    int direction = 0;
+    long to_vnum = 0;
+    std::string old_description;
+    std::string new_description;
+};
+
+struct ExitAlignmentReport {
+    std::size_t exits_checked = 0;
+    std::size_t exits_aligned = 0;
+    std::size_t exits_already_ok = 0;
+    std::size_t exits_missing_destination = 0;
+    std::vector<ExitAlignmentChange> changes;
+};
+
+// Align every inbound exit description to its destination room name.
+ExitAlignmentReport align_all_inbound_exit_descriptions(World& world);
 
 Zone* find_zone(World& world, int zone_num);
 const Zone* find_zone(const World& world, int zone_num);

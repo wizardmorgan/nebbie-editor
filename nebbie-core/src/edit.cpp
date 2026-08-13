@@ -631,6 +631,42 @@ std::size_t refresh_inbound_exit_descriptions(World& world, long target_vnum) {
     return updated;
 }
 
+ExitAlignmentReport align_all_inbound_exit_descriptions(World& world) {
+    ExitAlignmentReport report;
+    for (auto& [from_vnum, room] : world.rooms) {
+        for (auto& exit : room.exits) {
+            ++report.exits_checked;
+            if (exit.to_room <= 0) {
+                continue;
+            }
+
+            const Room* destination = world.find_room(exit.to_room);
+            if (!destination) {
+                ++report.exits_missing_destination;
+                continue;
+            }
+
+            if (strings_equal_ci(exit.description, destination->name)) {
+                ++report.exits_already_ok;
+                continue;
+            }
+
+            ExitAlignmentChange change;
+            change.from_vnum = from_vnum;
+            change.direction = exit.direction;
+            change.to_vnum = exit.to_room;
+            change.old_description = exit.description;
+            change.new_description = destination->name;
+            report.changes.push_back(change);
+
+            exit.description = destination->name;
+            ++report.exits_aligned;
+        }
+        (void)from_vnum;
+    }
+    return report;
+}
+
 bool set_room_exit(World& world, long room_vnum, const ExitEdit& edit) {
     Room* room = world.find_room(room_vnum);
     if (!room || edit.direction < 0 || edit.direction >= EXIT_DIR_COUNT) {

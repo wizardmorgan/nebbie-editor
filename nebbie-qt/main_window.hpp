@@ -1,6 +1,8 @@
 #pragma once
 
 #include "app_config.hpp"
+#include "application_log.hpp"
+#include "nebbie/edit.hpp"
 #include "nebbie/lib_context.hpp"
 #include "nebbie/session.hpp"
 #include "nebbie/validate.hpp"
@@ -62,6 +64,7 @@ private slots:
     void onObjSelected();
     void applyRoomChanges();
     void syncInboundExitLabels();
+    void alignAllInboundExitDescriptions(bool on_library_open);
     void applyMobChanges();
     void applyObjChanges();
     void applyZoneChanges();
@@ -108,6 +111,7 @@ private:
     void selectObjectByVnum(long vnum);
     long currentRoomVnum() const;
     void setStatus(const QString& message);
+    void showExitAlignmentReport(const QString& text, const nebbie::ExitAlignmentReport& report);
     void showValidation(const nebbie::ValidationReport& report);
     void navigateToIssue(const nebbie::ValidationIssue& issue);
     bool confirmSaveIfDirty();

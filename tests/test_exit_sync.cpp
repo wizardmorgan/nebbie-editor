@@ -69,6 +69,31 @@ int main() {
             throw std::runtime_error("case-only exit label mismatch should not trigger alignment");
         }
 
+        nebbie::Room mismatch_source;
+        mismatch_source.vnum = 34022;
+        mismatch_source.name = "Altra sorgente";
+        mismatch_source.description = "Test.";
+        mismatch_source.sector_type = 1;
+        nebbie::Exit mismatch_exit;
+        mismatch_exit.direction = 2;
+        mismatch_exit.description = "etichetta errata";
+        mismatch_exit.to_room = 34020;
+        mismatch_source.exits.push_back(mismatch_exit);
+        world.rooms.emplace(mismatch_source.vnum, mismatch_source);
+
+        const nebbie::ExitAlignmentReport bulk = nebbie::align_all_inbound_exit_descriptions(world);
+        if (bulk.exits_checked < 2 || bulk.exits_aligned != 1 || bulk.changes.size() != 1) {
+            throw std::runtime_error("bulk alignment did not update the mismatched exit");
+        }
+        if (world.find_room(34022)->exits.front().description != world.find_room(34020)->name) {
+            throw std::runtime_error("bulk alignment left mismatched exit description");
+        }
+
+        const nebbie::ExitAlignmentReport second_pass = nebbie::align_all_inbound_exit_descriptions(world);
+        if (second_pass.exits_aligned != 0) {
+            throw std::runtime_error("second bulk alignment pass should not modify exits");
+        }
+
         std::cout << "OK\n";
         return 0;
     } catch (const std::exception& ex) {
